@@ -418,6 +418,9 @@
       flex-direction:column;
       max-height:90vh;
     }
+    #itemModal .modalPanel{
+      height:90vh;
+    }
     .modalHead{
       padding:10px 12px;
       background:var(--panel2);
@@ -607,7 +610,6 @@
         <div class="panelHead">
           <div class="panelHeadLeft">
             <div class="panelTitle" id="panelTitle">Таблица</div>
-            <span class="pill">строк: <strong id="rowsCount">0</strong></span>
           </div>
           <div class="tabs">
             <button class="tab active" data-tab="table">Таблица</button>
@@ -793,7 +795,7 @@
 
             <div class="field">
               <label>Целевой показатель</label>
-              <div class="kv" style="grid-template-columns: 1fr 1fr 1fr">
+              <div class="kv" style="grid-template-columns: 1fr 1fr">
                 <div class="line" style="display:block">
                   <div class="k" style="margin-bottom:6px">Наименование</div>
                   <input type="text" id="mKpiName" placeholder="Например: количество услуг" />
@@ -801,10 +803,6 @@
                 <div class="line" style="display:block">
                   <div class="k" style="margin-bottom:6px">Ед. измерения</div>
                   <input type="text" id="mKpiUnit" placeholder="шт. / % / ед." />
-                </div>
-                <div class="line" style="display:block">
-                  <div class="k" style="margin-bottom:6px">Плановое значение</div>
-                  <input type="text" id="mKpiPlan" placeholder="100" />
                 </div>
               </div>
             </div>
@@ -817,23 +815,26 @@
               </div>
               <div id="kpiTargetsList" class="note"></div>
               <div id="kpiTargetForm" style="margin-top:8px; display:none; border:1px solid var(--border); padding:10px; border-radius:10px; background:var(--panel2)">
-                <div class="field" style="margin-bottom:8px">
-                  <label>Период / дата планового значения</label>
-                  <input type="text" id="kpiTargetPeriod" placeholder="например: Q1 2025 / 2025-03-01" />
-                </div>
-                <div class="field" style="margin-bottom:8px">
-                  <label>Плановое значение</label>
-                  <input type="text" id="kpiTargetValue" placeholder="Число или описание" />
-                </div>
-                <div class="field" style="margin-bottom:8px">
-                  <label>Фактическое значение (с датой)</label>
-                  <div class="kv" style="grid-template-columns: 1fr 1fr; align-items:end">
-                    <div class="line" style="display:block">
-                      <div class="k" style="margin-bottom:6px">Дата факта</div>
+                <div class="kv" style="grid-template-columns: 1fr 1fr; align-items:end; gap:14px">
+                  <div class="line" style="display:block">
+                    <div class="k" style="margin-bottom:6px; font-weight:700; color:var(--fg)">План</div>
+                    <div class="field" style="margin-bottom:8px">
+                      <label>Дата плана</label>
+                      <input type="date" id="kpiTargetPlanDate" />
+                    </div>
+                    <div class="field" style="margin-bottom:8px">
+                      <label>Плановое значение</label>
+                      <input type="text" id="kpiTargetPlanValue" placeholder="Число или описание" />
+                    </div>
+                  </div>
+                  <div class="line" style="display:block">
+                    <div class="k" style="margin-bottom:6px; font-weight:700; color:var(--fg)">Факт</div>
+                    <div class="field" style="margin-bottom:8px">
+                      <label>Дата факта</label>
                       <input type="date" id="kpiTargetFactDate" />
                     </div>
-                    <div class="line" style="display:block">
-                      <div class="k" style="margin-bottom:6px">Фактическое значение</div>
+                    <div class="field" style="margin-bottom:8px">
+                      <label>Фактическое значение</label>
                       <input type="text" id="kpiTargetFactValue" placeholder="Например: 80%" />
                     </div>
                   </div>
@@ -858,11 +859,7 @@
                   <input type="date" id="reportDate" />
                 </div>
                 <div class="field" style="margin-bottom:8px">
-                  <label>Период отчета</label>
-                  <input type="text" id="reportPeriod" placeholder="например: 1 полугодие 2024" />
-                </div>
-                <div class="field" style="margin-bottom:8px">
-                  <label>Комментарий / факт выполнения</label>
+                  <label>Отчет</label>
                   <textarea id="reportText" placeholder="Краткое содержание"></textarea>
                 </div>
                 <div class="btnRow">
@@ -957,11 +954,6 @@
               <div class="line"><div class="k">Исполнители</div><div class="v" id="secStatsExecs" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="modalFooter">
-        <div class="btnRow">
-          <button class="btn" id="secStatsClose2">❌</button>
         </div>
       </div>
     </div>
@@ -1163,11 +1155,11 @@
       };
     }
     function normalizeKpiTarget(t){
-      if(!t) return {id: uid("kpit"), period:"", value:"", factDate:"", factValue:""};
+      if(!t) return {id: uid("kpit"), planDate:"", planValue:"", factDate:"", factValue:""};
       return {
         id: t.id || uid("kpit"),
-        period: t.period || "",
-        value: t.value || "",
+        planDate: t.planDate || t.period || "",
+        planValue: t.planValue ?? t.value ?? "",
         factDate: t.factDate || "",
         factValue: t.factValue || ""
       };
@@ -1194,7 +1186,7 @@
       state.items.forEach(it=>{
         it.reports = Array.isArray(it.reports) ? it.reports.map(normalizeReport) : [];
         it.finalReport = it.finalReport ? normalizeReport(it.finalReport) : null;
-        it.kpi = it.kpi || {name:"", unit:"", plan:""};
+        it.kpi = it.kpi || {name:"", unit:""};
         it.kpiTargets = Array.isArray(it.kpiTargets) ? it.kpiTargets.map(normalizeKpiTarget) : [];
       });
       const starts = state.items.map(it=>it.planStart).filter(Boolean).sort();
@@ -1273,22 +1265,21 @@
     }
     function kpiName(it){
       const k = it.kpi || {};
-      if(!k.name && !k.plan && !k.unit) return "—";
+      if(!k.name && !k.unit) return "—";
       return `${k.name||"—"}`;
     }
     function kpiPlan(it){
       const k = it.kpi || {};
-      if(!k.name && !k.plan && !k.unit) return "—";
-      const val = k.plan || "—";
+      if(!k.name && !k.unit) return "—";
       const unit = k.unit ? ` ${k.unit}` : "";
-      return `${val}${unit}`;
+      return `${k.name||"—"}${unit}`;
     }
     function kpiDisplay(it){
       const k = it.kpi || {};
-      if(!k.name && !k.plan && !k.unit) return "—";
+      if(!k.name && !k.unit) return "—";
       const parts = [];
       if(k.name) parts.push(k.name);
-      if(k.plan) parts.push(`план: ${k.plan}${k.unit ? " " + k.unit : ""}`);
+      if(k.unit) parts.push(k.unit);
       return parts.join(" / ") || "—";
     }
     function sortedSections(){
@@ -1509,7 +1500,6 @@
           });
       });
 
-      document.getElementById("rowsCount").textContent = String(rows);
     }
 
     function openSectionStats(sec){
@@ -1889,7 +1879,6 @@
       const reportDate = document.getElementById("reportDate");
       reportDate.value = "";
       setDefaultDate(reportDate);
-      document.getElementById("reportPeriod").value = "";
       document.getElementById("reportText").value = "";
     }
     function renderReportsUI(){
@@ -1907,7 +1896,7 @@
         box.textContent = `Записей: ${currentReports.length}`;
         return;
       }
-      const sorted = [...currentReports].sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.period||"").localeCompare(b.period||""));
+      const sorted = [...currentReports].sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       sorted.forEach(rep=>{
         const row = document.createElement("div");
         row.style.display = "flex";
@@ -1917,8 +1906,7 @@
         row.style.padding = "6px 0";
         row.style.borderBottom = "1px solid var(--border)";
         row.innerHTML = `<div>
-          <div style="font-weight:700">${esc(rep.period||rep.date||"Отчет")}</div>
-          <div style="color:var(--muted); font-size:12px">${esc(rep.date||"Без даты")}</div>
+          <div style="font-weight:700">${esc(rep.date||"Отчет")}</div>
           <div style="font-size:12px">${esc(rep.text||"")}</div>
         </div>
         <div class="btnRow">
@@ -1930,7 +1918,6 @@
           const reportDate = document.getElementById("reportDate");
           reportDate.value = rep.date || "";
           setDefaultDate(reportDate);
-          document.getElementById("reportPeriod").value = rep.period || "";
           document.getElementById("reportText").value = rep.text || "";
           document.getElementById("reportForm").style.display = "block";
         });
@@ -1951,7 +1938,6 @@
       const rep = {
         id: editingReportId || uid("rep"),
         date: document.getElementById("reportDate").value,
-        period: document.getElementById("reportPeriod").value.trim(),
         text: document.getElementById("reportText").value.trim(),
       };
       if(editingReportId){
@@ -1966,8 +1952,10 @@
 
     function resetKpiTargetForm(){
       editingKpiTargetId = null;
-      document.getElementById("kpiTargetPeriod").value = "";
-      document.getElementById("kpiTargetValue").value = "";
+      const planDate = document.getElementById("kpiTargetPlanDate");
+      planDate.value = "";
+      setDefaultDate(planDate);
+      document.getElementById("kpiTargetPlanValue").value = "";
       const factDate = document.getElementById("kpiTargetFactDate");
       factDate.value = "";
       setDefaultDate(factDate);
@@ -1992,7 +1980,7 @@
         return;
       }
       box.innerHTML = "";
-      const sorted = [...currentKpiTargets].sort((a,b)=> (a.period||"").localeCompare(b.period||"") || (a.factDate||"").localeCompare(b.factDate||""));
+      const sorted = [...currentKpiTargets].sort((a,b)=> (a.planDate||"").localeCompare(b.planDate||"") || (a.factDate||"").localeCompare(b.factDate||""));
       sorted.forEach(t=>{
         const row = document.createElement("div");
         row.style.display = "grid";
@@ -2002,9 +1990,9 @@
         row.style.padding = "6px 0";
         row.style.borderBottom = "1px solid var(--border)";
         row.innerHTML = `<div>
-          <div style="font-weight:700">${esc(t.period||"Без периода")}</div>
-          <div style="font-size:12px">План: ${esc(t.value||"—")}</div>
-          <div style="color:var(--muted); font-size:12px">Факт на ${esc(t.factDate||"—")}: ${esc(t.factValue||"—")}</div>
+          <div style="font-weight:700">План: ${esc(t.planDate||"Без даты")}</div>
+          <div style="font-size:12px">Значение: ${esc(t.planValue||"—")}</div>
+          <div style="color:var(--muted); font-size:12px">Факт (${esc(t.factDate||"—")}): ${esc(t.factValue||"—")}</div>
         </div>
         <div class="btnRow">
           <button class="btn small" type="button" data-action="edit">✏</button>
@@ -2012,8 +2000,10 @@
         </div>`;
         row.querySelector('[data-action="edit"]').addEventListener("click", ()=>{
           editingKpiTargetId = t.id;
-          document.getElementById("kpiTargetPeriod").value = t.period || "";
-          document.getElementById("kpiTargetValue").value = t.value || "";
+          const planDate = document.getElementById("kpiTargetPlanDate");
+          planDate.value = t.planDate || "";
+          setDefaultDate(planDate);
+          document.getElementById("kpiTargetPlanValue").value = t.planValue || "";
           const factDate = document.getElementById("kpiTargetFactDate");
           factDate.value = t.factDate || "";
           setDefaultDate(factDate);
@@ -2030,8 +2020,8 @@
     function saveKpiTarget(){
       const t = normalizeKpiTarget({
         id: editingKpiTargetId,
-        period: document.getElementById("kpiTargetPeriod").value.trim(),
-        value: document.getElementById("kpiTargetValue").value.trim(),
+        planDate: document.getElementById("kpiTargetPlanDate").value,
+        planValue: document.getElementById("kpiTargetPlanValue").value.trim(),
         factDate: document.getElementById("kpiTargetFactDate").value,
         factValue: document.getElementById("kpiTargetFactValue").value.trim(),
       });
@@ -2133,7 +2123,7 @@
           number:"",
           reports:[],
           finalReport:null,
-          kpi:{name:"", unit:"", plan:""},
+          kpi:{name:"", unit:""},
           createdAt: nowISO(),
           updatedAt: nowISO()
         };
@@ -2165,7 +2155,6 @@
       document.getElementById("mNumber").value = current.number || "";
       document.getElementById("mKpiName").value = current.kpi?.name || "";
       document.getElementById("mKpiUnit").value = current.kpi?.unit || "";
-      document.getElementById("mKpiPlan").value = current.kpi?.plan || "";
 
       document.getElementById("mName").value = current.name || "";
       document.getElementById("mResult").value = current.result || "";
@@ -2225,7 +2214,6 @@
         kpi: {
           name: document.getElementById("mKpiName").value.trim(),
           unit: document.getElementById("mKpiUnit").value.trim(),
-          plan: document.getElementById("mKpiPlan").value.trim(),
         },
         reports: currentReports.map(r=>({...r})),
         kpiTargets: currentKpiTargets.map(t=>({...t})),
@@ -2461,7 +2449,7 @@
     document.getElementById("finalReportDelete").addEventListener("click", deleteFinalReport);
     document.getElementById("finalSave").addEventListener("click", saveFinalReport);
     document.getElementById("finalCancel").addEventListener("click", closeFinalForm);
-    ["secStatsClose","secStatsClose2"].forEach(id=>{
+    ["secStatsClose"].forEach(id=>{
       document.getElementById(id).addEventListener("click", closeSectionStats);
     });
     document.getElementById("secEditClose").addEventListener("click", closeSectionEdit);
