@@ -372,9 +372,11 @@
     .gInner{
       min-width:100%;
       width:max-content;
-      display:grid;
-      grid-template-columns: 420px 1fr;
+      display:flex;
+      flex-direction:column;
+      gap:0;
     }
+    .gRow{display:grid; grid-template-columns:420px 1fr; align-items:stretch; width:100%;}
     .gHeadL,.gHeadR{
       position:sticky; top:0; z-index:3;
       background:var(--panel2);
@@ -396,6 +398,7 @@
       align-items:flex-start;
       overflow:hidden;
       word-break:break-word;
+      height:100%;
     }
     .gName{font-weight:900; font-size:13px; margin-bottom:4px; word-break:break-word;}
     .gSub{font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; word-break:break-word;}
@@ -405,6 +408,7 @@
       display:flex;
       flex-direction:column;
       gap:6px;
+      height:100%;
     }
     .months{
       display:grid;
@@ -454,9 +458,16 @@
       top:0; bottom:0;
       width:10px;
       cursor:ew-resize;
+      z-index:3;
+      opacity:.9;
+      background:rgba(37,99,235,.12);
+      border-left:1px solid rgba(37,99,235,.35);
+      border-right:1px solid rgba(37,99,235,.35);
     }
     .bar .handle.left{left:0;}
     .bar .handle.right{right:0;}
+    .bar .dragArea{z-index:2;}
+    .bar .barLabel{position:relative; z-index:1;}
     .statusBadge{
       display:inline-flex;
       align-items:center;
@@ -510,37 +521,24 @@
     .timelineRow{
       position:relative;
       min-height:56px;
-      height:var(--row-height, auto);
+      height:100%;
       background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
       border:1px solid var(--border);
       border-radius:12px;
       overflow:hidden;
       padding:6px 0;
+      display:flex;
+      align-items:stretch;
     }
     .gLeft .dates{font-size:12px; color:var(--muted); white-space:nowrap;}
     .gLeft .titleWrap{flex:1; min-width:0; word-break:break-word;}
-    .bar .moveHandle{
+    .bar .dragArea{
       position:absolute;
-      right:-6px;
-      top:8px;
-      bottom:8px;
-      width:18px;
-      border:none;
-      background:rgba(37,99,235,.85);
-      color:#fff;
-      border-radius:8px;
+      inset:6px 14px;
       cursor:grab;
-      padding:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:800;
-      font-size:11px;
-      box-shadow:0 1px 4px rgba(0,0,0,.18);
-      opacity:0.85;
+      border-radius:8px;
     }
-    .bar.tinyBar{padding-right:18px;}
-    .bar.tinyBar .moveHandle{opacity:1;}
+    .bar.tinyBar .dragArea{inset:6px 10px;}
 
     /* Modal (Etalon-like) */
     .modal{
@@ -828,13 +826,6 @@
               <div class="gTop">
                 <div class="left" style="display:flex; gap:10px; flex-wrap:wrap">
                   <div class="field" style="margin:0; min-width:220px">
-                    <label>Полоса по</label>
-                    <select id="gMode">
-                      <option value="plan">Плановым датам</option>
-                      <option value="fact">Факт (если есть, иначе план)</option>
-                    </select>
-                  </div>
-                  <div class="field" style="margin:0; min-width:220px">
                     <label>Масштаб</label>
                     <select id="gScale">
                       <option value="auto">Авто</option>
@@ -853,8 +844,8 @@
                   <div class="field" style="margin:0; min-width:220px">
                     <label>Показывать отменённые</label>
                     <select id="gShowCanceled">
+                      <option value="yes" selected>Да</option>
                       <option value="no">Нет</option>
-                      <option value="yes">Да</option>
                   </select>
                 </div>
                 <label class="pill" style="align-self:flex-end; cursor:pointer; display:inline-flex; gap:8px">
@@ -2013,7 +2004,6 @@
     let ganttJustDragged = false;
     let ganttDragFrame = null;
     const GANTT_DRAG_THRESHOLD = 3;
-    const GANTT_MIN_ROW_HEIGHT = 56;
     const GANTT_TINY_HANDLE_WIDTH = 16;
     const sectionColorMap = {};
     const seasonColors = {
@@ -2194,7 +2184,6 @@
       const inner = document.getElementById("gInner");
       inner.innerHTML = "";
 
-      const mode = document.getElementById("gMode").value;
       const showCanceled = document.getElementById("gShowCanceled").value === "yes";
       const scalePref = document.getElementById("gScale").value;
       const sortModeSel = document.getElementById("gSort");
@@ -2210,14 +2199,19 @@
       const timeline = buildTimeline(scalePref);
 
       // Head
+      const headRowWrap = document.createElement("div");
+      headRowWrap.className = "gRow gHeadRow";
       const hL = document.createElement("div");
       hL.className = "gHeadL";
       hL.textContent = "Мероприятия";
       const hR = document.createElement("div");
       hR.className = "gHeadR";
       hR.textContent = timeline ? `Шкала: ${toISODate(timeline.start)} → ${toISODate(timeline.end)}` : "Шкала не задана";
-      inner.appendChild(hL); inner.appendChild(hR);
+      headRowWrap.appendChild(hL); headRowWrap.appendChild(hR);
+      inner.appendChild(headRowWrap);
 
+      const legendRow = document.createElement("div");
+      legendRow.className = "gRow";
       const l0 = document.createElement("div");
       l0.className = "gLeft";
       l0.innerHTML = `<div class="gRowL"><div class="gName">Номер, мероприятие, статус, даты</div><div class="gSub">Клик по строке — карточка</div></div>`;
@@ -2275,7 +2269,9 @@
         headRow.innerHTML = `<div class="note">Укажите период</div>`;
       }
       r0.appendChild(headRow);
-      inner.appendChild(l0); inner.appendChild(r0);
+      legendRow.appendChild(l0);
+      legendRow.appendChild(r0);
+      inner.appendChild(legendRow);
 
       if(!timeline){
         refreshGanttActions();
@@ -2285,6 +2281,8 @@
       const orderedItems = sortItemsForGantt(items, sortMode);
 
       orderedItems.forEach(it=>{
+        const row = document.createElement("div");
+        row.className = "gRow";
         const l = document.createElement("div");
         l.className = "gLeft";
         l.dataset.id = it.id;
@@ -2324,7 +2322,7 @@
             barRow.appendChild(overlay);
           }
         }
-        const bar = buildBar(it, timeline, mode, secColor);
+        const bar = buildBar(it, timeline, secColor);
         barRow.appendChild(bar);
         r.appendChild(barRow);
         r.addEventListener("click", (e)=>{
@@ -2337,9 +2335,9 @@
           openModal(it.id);
         });
 
-        inner.appendChild(l);
-        inner.appendChild(r);
-        syncRowHeight(l, r);
+        row.appendChild(l);
+        row.appendChild(r);
+        inner.appendChild(row);
       });
 
       refreshGanttActions();
@@ -2360,15 +2358,11 @@
       return wrap;
     }
 
-    function buildBar(it, timeline, mode, secColor){
+    function buildBar(it, timeline, secColor){
       const {planStart: workingStart, planEnd: workingEnd} = workingDates(it);
       const planS = workingStart || "";
       const planE = workingEnd || "";
       let s = planS, e = planE;
-
-      if(mode === "fact"){
-        s = planS; e = planE;
-      }
 
       const bar = document.createElement("div");
       bar.className = "bar";
@@ -2414,25 +2408,6 @@
         document.addEventListener("mouseup", onDragEnd, {once:true});
       }
 
-      function updateTinyHandle(width){
-        const tiny = width < GANTT_TINY_HANDLE_WIDTH && ganttEditable;
-        let moveHandle = bar.querySelector('.moveHandle');
-        if(tiny){
-          bar.classList.add("tinyBar");
-          if(!moveHandle){
-            moveHandle = document.createElement('button');
-            moveHandle.type = 'button';
-            moveHandle.className = 'moveHandle';
-            moveHandle.textContent = '⇆';
-            moveHandle.addEventListener('mousedown', (ev)=>startDrag('move', ev));
-            bar.appendChild(moveHandle);
-          }
-        } else {
-          bar.classList.remove("tinyBar");
-          if(moveHandle) moveHandle.remove();
-        }
-      }
-
       function applyBarGeometry(newStart, newEnd){
         const newStartStr = toISODate(newStart);
         const newEndStr = toISODate(newEnd);
@@ -2443,12 +2418,12 @@
         bar.dataset.end = newEndStr;
         const label = bar.querySelector('.barLabel');
         if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-        updateTinyHandle(pos.width);
+        bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
       }
 
       bar.style.borderColor = secColor;
 
-      bar.innerHTML = `<span class="barLabel">${esc(s)} → ${esc(e)}</span><div class="handle left" data-side="start"></div><div class="handle right" data-side="end"></div>`;
+      bar.innerHTML = `<div class="handle left resizeHandle" data-side="start"></div><div class="handle right resizeHandle" data-side="end"></div><div class="dragArea" data-role="move"></div><span class="barLabel">${esc(s)} → ${esc(e)}</span>`;
 
       applyBarGeometry(start, end);
 
@@ -2457,15 +2432,17 @@
         return bar;
       }
 
-      bar._updateTinyHandle = updateTinyHandle;
-
       bar.addEventListener("mousedown", (ev)=>{
-        if(ev.target.classList.contains("handle")) return;
+        if(ev.target.closest(".resizeHandle")) return;
         startDrag("move", ev);
       });
-      bar.querySelectorAll(".handle").forEach(h=>{
+      bar.querySelectorAll(".resizeHandle").forEach(h=>{
         h.addEventListener("mousedown", (ev)=>startDrag(h.dataset.side, ev));
       });
+      const dragArea = bar.querySelector('.dragArea');
+      if(dragArea){
+        dragArea.addEventListener('mousedown', (ev)=>startDrag('move', ev));
+      }
       return bar;
     }
 
@@ -2489,20 +2466,6 @@
       if(datesEl) datesEl.textContent = `${startStr} → ${endStr}`;
     }
 
-    function syncRowHeight(leftCell, rightCell){
-      const leftRow = leftCell?.querySelector('.gRowL');
-      const timelineRow = rightCell?.querySelector('.timelineRow');
-      if(!leftRow || !timelineRow) return;
-      const applyHeight = ()=>{
-        const h = Math.max(GANTT_MIN_ROW_HEIGHT, leftRow.offsetHeight);
-        timelineRow.style.setProperty('--row-height', `${h}px`);
-        timelineRow.style.height = `${h}px`;
-      };
-      applyHeight();
-      const ro = new ResizeObserver(applyHeight);
-      ro.observe(leftRow);
-    }
-
     function applyDragPreview(){
       if(!ganttDrag || !ganttDrag.preview) return;
       const {timeline, id, preview} = ganttDrag;
@@ -2519,7 +2482,7 @@
         bar.dataset.end = newEndStr;
         const label = bar.querySelector('.barLabel');
         if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-        if(typeof bar._updateTinyHandle === "function") bar._updateTinyHandle(pos.width);
+        bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
       }
       updateLeftDates(id, newStartStr, newEndStr);
       refreshGanttActions();
@@ -2546,17 +2509,23 @@
       let newStart = start;
       let newEnd = end;
       if(type === "move"){
-        newStart = snapDate(start, deltaDays, snap);
-        newEnd = addDays(newStart, spanDays);
+        const snappedStart = snapDate(start, deltaDays, snap);
+        let shift = diffDays(start, snappedStart);
+        const minShift = diffDays(timeline.start, start);
+        const maxShift = diffDays(timeline.end, end);
+        shift = Math.min(Math.max(shift, minShift), maxShift);
+        newStart = addDays(start, shift);
+        newEnd = addDays(end, shift);
       } else if(type === "start"){
         newStart = snapDate(start, deltaDays, snap);
-        if(newStart > newEnd) newStart = addDays(newEnd, -1);
+        if(newStart > newEnd) newStart = newEnd;
       } else if(type === "end"){
         newEnd = snapDate(end, deltaDays, snap);
-        if(newEnd < newStart) newEnd = addDays(newStart, 1);
+        if(newEnd < newStart) newEnd = newStart;
       }
       newStart = clampDate(newStart, timeline.start, timeline.end);
       newEnd = clampDate(newEnd, timeline.start, timeline.end);
+      if(newEnd < newStart) newEnd = newStart;
       ganttDrag.preview = {newStart, newEnd};
       queueDragPreview();
     }
@@ -3106,7 +3075,7 @@
       document.getElementById(id).addEventListener("change", ()=>renderAll());
     });
 
-    ["gMode","gShowCanceled","gScale"].forEach(id=>{
+    ["gShowCanceled","gScale"].forEach(id=>{
       const el = document.getElementById(id);
       if(el){
         el.addEventListener("change", ()=>renderAll());
@@ -3188,7 +3157,7 @@
     });
 
     // Gantt controls
-    ["gMode","gShowCanceled","gScale","gSort"].forEach(id=>{
+    ["gShowCanceled","gScale","gSort"].forEach(id=>{
       const el = document.getElementById(id);
       if(!el) return;
       el.addEventListener("change", ()=>{
