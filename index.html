@@ -42,6 +42,7 @@
     body{
       margin:0; font-family:var(--sans); color:var(--fg); background:var(--bg);
     }
+    body.modal-open{overflow:hidden}
 
     /* Top bar (approx Etalon header area) */
     .topbar{
@@ -441,6 +442,7 @@
       padding:16px;
       z-index:50;
       overflow-y:auto;
+      min-height:0;
     }
     .modal.active{display:flex}
     .modalPanel{
@@ -453,9 +455,9 @@
       display:flex;
       flex-direction:column;
       max-height:90vh;
+      min-height:0;
     }
     #itemModal .modalPanel, #modal .modalPanel{
-      height:calc(100vh - 32px);
       max-height:calc(100vh - 32px);
     }
     .modalHead{
@@ -1586,11 +1588,13 @@
       const execBox = document.getElementById("secStatsExecs");
       execBox.innerHTML = allExecs.length ? allExecs.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
 
+      setBodyLock(true);
       modal.classList.add("active");
     }
 
     function closeSectionStats(){
       document.getElementById("sectionStatsModal").classList.remove("active");
+      setBodyLock(false);
     }
 
     function normalizeSectionOrders(){
@@ -1607,6 +1611,7 @@
       document.getElementById("secEditDelete").style.display = "inline-flex";
       document.getElementById("secMoveUp").disabled = false;
       document.getElementById("secMoveDown").disabled = false;
+      setBodyLock(true);
       document.getElementById("sectionEditModal").classList.add("active");
     }
 
@@ -1625,6 +1630,7 @@
 
     function closeSectionEdit(){
       document.getElementById("sectionEditModal").classList.remove("active");
+      setBodyLock(false);
       editingSectionId = null;
     }
 
@@ -2171,6 +2177,10 @@
       if(!allowed) closeFinalForm();
     }
 
+    function setBodyLock(locked){
+      document.body.classList.toggle("modal-open", locked);
+    }
+
     function openFinalForm(){
       const finalDate = document.getElementById("finalDate");
       finalDate.value = currentFinalReport?.date || "";
@@ -2281,11 +2291,13 @@
       // Delete button disabled for new unsaved
       document.getElementById("mDelete").disabled = !!tempNewItem;
 
+      setBodyLock(true);
       modal.classList.add("active");
     }
 
     function closeModal(){
       modal.classList.remove("active");
+      setBodyLock(false);
       editingId = null;
       tempNewItem = null;
       currentReports = [];
