@@ -164,6 +164,16 @@
       background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
     }
+    .panelHeadRight{
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    }
+    .sortBlock{
+      display:flex; align-items:center; gap:8px; background:var(--panel2);
+      border:1px solid var(--border); border-radius:10px; padding:6px 10px;
+      font-size:13px;
+    }
+    .sortBlock label{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);}
+    .sortBlock select{min-width:160px;}
     .panelHeadLeft{
       display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     }
@@ -762,10 +772,22 @@
           <div class="panelHeadLeft">
             <div class="panelTitle" id="panelTitle">Таблица</div>
           </div>
-          <div class="tabs">
-            <button class="tab active" data-tab="table">Таблица</button>
-            <button class="tab" data-tab="kanban">Доски</button>
-            <button class="tab" data-tab="gantt">Гант</button>
+          <div class="panelHeadRight">
+            <div class="sortBlock">
+              <span style="font-weight:700">Сортировать</span>
+              <label>По
+                <select id="tableSort">
+                  <option value="number" selected>По нумерации</option>
+                  <option value="planStart">По план началу</option>
+                  <option value="planEnd">По план концу</option>
+                </select>
+              </label>
+            </div>
+            <div class="tabs">
+              <button class="tab active" data-tab="table">Таблица</button>
+              <button class="tab" data-tab="kanban">Доски</button>
+              <button class="tab" data-tab="gantt">Гант</button>
+            </div>
           </div>
         </div>
 
@@ -1607,12 +1629,29 @@
     /* =========================
        Table
     ========================= */
+    function currentTableSort(){
+      const sel = document.getElementById("tableSort");
+      const val = sel ? sel.value : "number";
+      return val || "number";
+    }
+
+    function sortSectionItems(list, sortMode){
+      const arr = [...list];
+      const byNumber = (a,b)=> (a.number||"").localeCompare(b.number||"") || (a.planStart||"").localeCompare(b.planStart||"") || (a.name||"").localeCompare(b.name||"");
+      const byPlanStart = (a,b)=> (a.planStart||"").localeCompare(b.planStart||"") || byNumber(a,b);
+      const byPlanEnd = (a,b)=> (a.planEnd||"").localeCompare(b.planEnd||"") || byNumber(a,b);
+      if(sortMode === "planStart") return arr.sort(byPlanStart);
+      if(sortMode === "planEnd") return arr.sort(byPlanEnd);
+      return arr.sort(byNumber);
+    }
+
     function renderTable(){
       const tbody = document.getElementById("tbody");
       tbody.innerHTML = "";
 
       const items = filteredItems();
       const secs = sortedSections();
+      const sortMode = currentTableSort();
 
       let rows = 0;
       secs.forEach(sec=>{
@@ -1666,8 +1705,7 @@
 
         if(collapsed) return;
 
-        inSec.sort((a,b)=>(a.planEnd||"").localeCompare(b.planEnd||"") || (a.name||"").localeCompare(b.name||""))
-          .forEach(it=>{
+        sortSectionItems(inSec, sortMode).forEach(it=>{
             rows++;
             const tr = document.createElement("tr");
             tr.addEventListener("click",(e)=>{
@@ -2410,7 +2448,7 @@
       const snap = 1;
 
       function startDrag(type, ev){
-        if(!ganttEditable) return;
+        if(!ganttEditable || ev.button !== 0) return;
         ev.preventDefault();
         ev.stopPropagation();
         const currentStart = parseISODate(bar.dataset.start || s) || start;
@@ -2426,15 +2464,9 @@
           initialEnd: currentEnd,
           snap,
           timeline,
-          moved: false
+          moved: false,
+          clickSuppressed: false
         };
-        if(type === "move"){
-          ganttDrag.suppressClick = (evt)=>{
-            evt.preventDefault();
-            evt.stopPropagation();
-          };
-          document.addEventListener("click", ganttDrag.suppressClick, true);
-        }
         document.addEventListener("mousemove", onDragMove);
         document.addEventListener("mouseup", onDragEnd, {once:true});
       }
@@ -2510,13 +2542,25 @@
     function onDragMove(ev){
       if(!ganttDrag) return;
       const {type, initialX, initialStart, initialEnd, snap, timeline} = ganttDrag;
+      const deltaPx = ev.clientX - initialX;
+      if(type === "move" && !ganttDrag.moved && Math.abs(deltaPx) <= GANTT_DRAG_THRESHOLD){
+        return;
+      }
       const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
       const pxPerDay = timeline.totalWidth / totalDays;
-      const deltaPx = ev.clientX - initialX;
       const deltaDays = Math.round((deltaPx / pxPerDay) / snap) * snap;
-      if(!ganttDrag.moved && Math.abs(deltaPx) > GANTT_DRAG_THRESHOLD){
+      if(!ganttDrag.moved && (type !== "move" || Math.abs(deltaPx) > GANTT_DRAG_THRESHOLD)){
         ganttDrag.moved = true;
+        if(type === "move" && !ganttDrag.clickSuppressed){
+          ganttDrag.clickSuppressed = true;
+          ganttDrag.suppressClick = (evt)=>{
+            evt.preventDefault();
+            evt.stopPropagation();
+          };
+          document.addEventListener("click", ganttDrag.suppressClick, true);
+        }
       }
+      if(type !== "move" && deltaDays === 0) return;
       let newStart = initialStart;
       let newEnd = initialEnd;
       if(type === "move"){
@@ -3086,6 +3130,10 @@
       document.getElementById(id).addEventListener("input", ()=>renderAll());
       document.getElementById(id).addEventListener("change", ()=>renderAll());
     });
+    const tableSort = document.getElementById("tableSort");
+    if(tableSort){
+      tableSort.addEventListener("change", ()=>renderAll());
+    }
 
     ["gShowCanceled","gScale"].forEach(id=>{
       const el = document.getElementById(id);
