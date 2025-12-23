@@ -306,6 +306,8 @@
     .kbCard:active{cursor:grabbing}
     .kbNumber{font-size:11px; font-weight:800; color:var(--muted); letter-spacing:0.2px; text-transform:uppercase;}
     .kbTitle{font-weight:900; font-size:13px; margin:0 0 4px 0; line-height:1.25}
+    .kbSectionLine{font-size:11px; font-weight:800; color:var(--muted);}
+    .kbRole{font-size:11px; font-weight:800; color:#1e3a8a;}
     .kbLine{padding:6px 8px; border-radius:10px; font-size:12px; font-weight:700;}
     .kbLine.owner{background:var(--greenSoft); color:var(--green);}
     .kbLine.co{background:#e5e7eb; color:#374151; font-weight:600;}
@@ -438,6 +440,7 @@
       align-items:center; justify-content:center;
       padding:16px;
       z-index:50;
+      overflow-y:auto;
     }
     .modal.active{display:flex}
     .modalPanel{
@@ -452,8 +455,8 @@
       max-height:90vh;
     }
     #itemModal .modalPanel, #modal .modalPanel{
-      height:90vh;
-      max-height:90vh;
+      height:calc(100vh - 32px);
+      max-height:calc(100vh - 32px);
     }
     .modalHead{
       padding:10px 12px;
@@ -524,6 +527,13 @@
       gap:10px;
       align-items:center;
       font-size:12px;
+    }
+    .kv .line.execsLine{
+      grid-template-columns: 1fr;
+      align-items:flex-start;
+    }
+    .kv .line.execsLine .k{
+      margin-bottom:6px;
     }
     .kv .line .k{color:var(--muted)}
     .kv .line .v{font-weight:700; color:#111827}
@@ -687,7 +697,7 @@
                   <select id="kbGroupBy">
                     <option value="none">Без группировки</option>
                     <option value="section">По разделам</option>
-                    <option value="owner">По ответственным</option>
+                    <option value="executor">По исполнителям</option>
                   </select>
                 </div>
                 <div class="field" style="margin:0; min-width:220px">
@@ -699,7 +709,7 @@
                   </div>
               </div>
               <div class="right">
-                <button class="btn primary" id="kbPlus">+ Карточка</button>
+                <button class="btn primary" id="kbPlus">+ Мероприятие</button>
               </div>
             </div>
 
@@ -798,7 +808,7 @@
             </div>
 
             <div class="field">
-              <label>Финансирование, рублей</label>
+              <label>Финансирование, ₽</label>
               <input type="text" id="mMoney" placeholder="например: 10 000 000" />
             </div>
 
@@ -969,10 +979,6 @@
       </div>
       <div class="modalBody" style="grid-template-columns: 1fr">
         <div class="modalMain">
-          <h4>
-            <span>Сводка</span>
-            <span class="pill" id="secStatsCount">—</span>
-          </h4>
           <div class="content">
             <div class="kv" style="grid-template-columns:1fr 1fr">
               <div class="line"><div class="k">Всего мероприятий</div><div class="v" id="secStatsTotal">—</div></div>
@@ -982,13 +988,16 @@
               <div class="line"><div class="k">Отменено</div><div class="v" id="secStatsCanceled">—</div></div>
               <div class="line"><div class="k">Дата начала раздела</div><div class="v" id="secStatsStart">—</div></div>
               <div class="line"><div class="k">Дата окончания раздела</div><div class="v" id="secStatsEnd">—</div></div>
-              <div class="line"><div class="k">Финансирование, рублей</div><div class="v" id="secStatsMoney">—</div></div>
+              <div class="line"><div class="k">Финансирование, ₽</div><div class="v" id="secStatsMoney">—</div></div>
             </div>
 
             <div style="height:10px"></div>
 
             <div class="kv">
-              <div class="line"><div class="k">Исполнители</div><div class="v" id="secStatsExecs" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
+              <div class="line execsLine">
+                <div class="k">Исполнители</div>
+                <div class="v" id="secStatsExecs" style="display:flex; gap:6px; flex-wrap:wrap"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -1266,6 +1275,17 @@
     function formatMoney(num){
       return new Intl.NumberFormat('ru-RU').format(num);
     }
+    function formatMoneyWithCurrency(num){
+      return `${formatMoney(num)} ₽`;
+    }
+    function moneyDisplay(value){
+      const str = String(value ?? "").trim();
+      if(!str) return "—";
+      if(str === "—") return "—";
+      if(!/[0-9]/.test(str)) return str;
+      const num = parseMoney(str);
+      return `${formatMoney(num)} ₽`;
+    }
     function uniqueList(arr){
       return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     }
@@ -1445,7 +1465,7 @@
         `Отменено: <b>${by.canceled||0}</b><br>`+
         `Дата начала ДК: <b>${startDk}</b><br>`+
         `Дата окончания ДК: <b>${endDk}</b><br>`+
-        `Общее финансирование ДК: <b>${formatMoney(moneySum)}</b>`;
+        `Общее финансирование ДК: <b>${formatMoneyWithCurrency(moneySum)}</b>`;
     }
 
     /* =========================
@@ -1551,7 +1571,6 @@
 
       document.getElementById("secStatsTitle").textContent = "Статистика раздела";
       document.getElementById("secStatsSub").textContent = sectionDisplayName(sec) || "—";
-      document.getElementById("secStatsCount").textContent = `${items.length} шт.`;
       document.getElementById("secStatsTotal").textContent = items.length;
       document.getElementById("secStatsPlanned").textContent = counts.planned||0;
       document.getElementById("secStatsWork").textContent = counts.work||0;
@@ -1559,7 +1578,7 @@
       document.getElementById("secStatsCanceled").textContent = counts.canceled||0;
       document.getElementById("secStatsStart").textContent = starts[0] || "—";
       document.getElementById("secStatsEnd").textContent = ends[ends.length-1] || "—";
-      document.getElementById("secStatsMoney").textContent = items.length ? formatMoney(moneySum) : "—";
+      document.getElementById("secStatsMoney").textContent = items.length ? formatMoneyWithCurrency(moneySum) : "—";
 
       const owners = uniqueList(items.map(it=>(it.owner||"").trim()).filter(Boolean));
       const coExecs = uniqueList(items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)));
@@ -1733,7 +1752,7 @@
             dragGroup = null;
           });
 
-          colItems.forEach(it=>body.appendChild(kbCardNode(it, group.key)));
+          colItems.forEach(it=>body.appendChild(kbCardNode(it, group)));
           colsWrap.appendChild(colDiv);
         });
 
@@ -1746,26 +1765,35 @@
         return sortedSections().map(sec=>({
           key: sec.id,
           name: sectionDisplayName(sec),
+          type: "section",
           items: items.filter(it=>it.sectionId===sec.id)
         })).filter(g=>g.items.length);
       }
-      if(groupBy === "owner"){
-        const owners = Array.from(new Set(items.map(it => (it.owner||"—").trim() || "—"))).sort((a,b)=>a.localeCompare(b));
-        return owners.map(owner=>({
-          key: `owner-${owner}`,
-          name: owner || "—",
-          items: items.filter(it => ((it.owner||"—").trim()||"—") === owner)
-        })).filter(g=>g.items.length);
+      if(groupBy === "executor"){
+        const map = new Map();
+        items.forEach(it=>{
+          const owner = (it.owner||"").trim();
+          const coExecs = (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+          const execsBase = uniqueList([owner, ...coExecs].filter(Boolean));
+          const execs = execsBase.length ? execsBase : ["—"];
+          execs.forEach(exec=>{
+            const key = `exec-${exec}`;
+            if(!map.has(key)) map.set(key, {key, name: exec, type:"executor", items: []});
+            const role = exec === owner || (!owner && exec === "—") ? "owner" : "co";
+            map.get(key).items.push({...it, __role: role});
+          });
+        });
+        return Array.from(map.values()).sort((a,b)=>a.name.localeCompare(b.name)).filter(g=>g.items.length);
       }
-      return [{key:"all", name:"Все мероприятия", items}];
+      return [{key:"all", name:"Все мероприятия", items, type:"all"}];
     }
 
-    function kbCardNode(it, groupKey){
+    function kbCardNode(it, group){
       const card = document.createElement("div");
       card.className = "kbCard";
       card.draggable = true;
       card.dataset.id = it.id;
-      card.dataset.group = groupKey || "all";
+      card.dataset.group = group?.key || "all";
 
       card.addEventListener("dragstart", ()=>{
         dragId = it.id;
@@ -1792,15 +1820,20 @@
 
       const chips = [];
       if(it.planEnd || it.planStart) chips.push(`<span class="chip muted">${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}</span>`);
-      if(it.money) chips.push(`<span class="chip muted">${esc(it.money)}</span>`);
+      const moneyText = moneyDisplay(it.money);
+      if(moneyText !== "—") chips.push(`<span class="chip muted">${esc(moneyText)}</span>`);
       const rep = reportSummary(it);
       if(rep !== "—") chips.push(`<span class="chip muted">Отчеты: ${esc(rep)}</span>`);
       if(it.status === "done") chips.push(`<span class="chip ok">Исполнено</span>`);
       if(it.status === "canceled") chips.push(`<span class="chip bad">Отменено</span>`);
 
+      const sectionLine = group?.type !== "section" ? `<div class="kbSectionLine">${esc(sectionDisplayName(byId(state.sections, it.sectionId)) || "—")}</div>` : "";
+      const roleLine = group?.type === "executor" ? `<div class="kbRole">${it.__role === "owner" ? "Ответственный" : "Соисполнитель"}</div>` : "";
+      const titleLine = `<div class="kbTitle">${esc([it.number, it.name||"—"].filter(Boolean).join(" "))}</div>`;
       card.innerHTML = `
-        <div class="kbNumber">${esc(it.number||"—")}</div>
-        <div class="kbTitle">${esc(it.name||"—")}</div>
+        ${sectionLine}
+        ${titleLine}
+        ${roleLine}
         <div class="kbLine owner">Ответственный: ${esc(it.owner||"—")}</div>
         <div class="kbLine co">Соисполнители: ${esc(it.co||"—")}</div>
         <div class="kbMeta">${chips.join("")}</div>
@@ -2205,7 +2238,7 @@
 
       const current = tempNewItem || it;
 
-      document.getElementById("mTitle").textContent = isNew ? "Создание карточки" : "Редактирование карточки";
+      document.getElementById("mTitle").textContent = isNew ? "Создание мероприятия" : "Редактирование карточки";
       document.getElementById("mSub").textContent = current.name ? current.name : "—";
       document.getElementById("mId").textContent = current.id;
 
