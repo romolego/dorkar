@@ -354,15 +354,18 @@
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
       margin-bottom:10px;
     }
+    .gTop .btnRow{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;}
     .gGrid{
       border:1px solid var(--border);
       border-radius:12px;
       overflow:auto;
       background:#fff;
       box-shadow:0 1px 2px rgba(0,0,0,.05);
+      max-width:100%;
     }
     .gInner{
-      min-width:1000px;
+      min-width:100%;
+      width:max-content;
       display:grid;
       grid-template-columns: 420px 1fr;
     }
@@ -435,6 +438,8 @@
       color:#0b2a8a;
       cursor:grab;
     }
+    .bar.disabled{cursor:default; border-style:dashed;}
+    .bar.disabled .handle{display:none;}
     .bar:active{cursor:grabbing}
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
@@ -477,8 +482,8 @@
       border:1px solid var(--border);
       border-radius:8px;
       background:#fff;
-      padding:6px 4px;
-      font-size:11px;
+      padding:4px 3px;
+      font-size:10px;
       flex-shrink:0;
       white-space:nowrap;
     }
@@ -508,7 +513,7 @@
       position:fixed; inset:0;
       background:rgba(17,24,39,.35);
       display:none;
-      align-items:center; justify-content:center;
+      align-items:flex-start; justify-content:center;
       padding:16px;
       z-index:50;
       overflow-y:auto;
@@ -524,12 +529,8 @@
       overflow:hidden;
       display:flex;
       flex-direction:column;
-      max-height:90vh;
-      min-height:0;
     }
-    #itemModal .modalPanel, #modal .modalPanel{
-      max-height:calc(100vh - 32px);
-    }
+    #itemModal .modalPanel, #modal .modalPanel{max-height:none;}
     .modalHead{
       padding:10px 12px;
       background:var(--panel2);
@@ -565,9 +566,8 @@
       gap:12px;
       padding:12px;
       background:#fff;
-      overflow-y:auto;
-      flex:1;
-      min-height:0;
+      overflow:visible;
+      flex:none;
     }
     @media (max-width: 1000px){
       .modalBody{grid-template-columns:1fr}
@@ -810,15 +810,30 @@
                     </select>
                   </div>
                   <div class="field" style="margin:0; min-width:220px">
+                    <label>Сортировка</label>
+                    <select id="gSort">
+                      <option value="date">По датам</option>
+                      <option value="section">По разделам</option>
+                    </select>
+                  </div>
+                  <div class="field" style="margin:0; min-width:220px">
                     <label>Показывать отменённые</label>
                     <select id="gShowCanceled">
                       <option value="no">Нет</option>
                       <option value="yes">Да</option>
                   </select>
                 </div>
+                <label class="pill" style="align-self:flex-end; cursor:pointer; display:inline-flex; gap:8px">
+                  <input type="checkbox" id="gEnableEdit" style="width:16px; height:16px; accent-color:#2563eb" />
+                  <span>Редактировать периоды</span>
+                </label>
               </div>
               <div class="right">
-                <button class="btn primary" id="gPlus">+ Мероприятие</button>
+                <div class="btnRow">
+                  <button class="btn" id="gCancelPending" style="display:none">Отменить изменения</button>
+                  <button class="btn primary" id="gApplyPending" style="display:none">Применить изменения</button>
+                  <button class="btn primary" id="gPlus">+ Мероприятие</button>
+                </div>
               </div>
             </div>
 
@@ -1955,6 +1970,12 @@
     ========================= */
     let ganttDrag = null;
     let ganttDragging = false;
+    let ganttPending = new Map();
+    let ganttOrder = [];
+    let ganttUndoStack = [];
+    let ganttUndoCheckpoint = null;
+    let ganttEditable = false;
+    let ganttSortMode = "date";
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -1962,6 +1983,45 @@
       6:"#ffedd5",7:"#ffedd5",8:"#ffedd5",
       9:"#fef9c3",10:"#fef9c3",11:"#fef9c3",
     };
+    function clonePendingMap(src){
+      return new Map(Array.from(src.entries()).map(([id,val])=>[id,{...val}]));
+    }
+    function hasPendingChanges(){
+      return ganttPending.size > 0;
+    }
+    function workingDates(it){
+      const pending = ganttPending.get(it.id);
+      return {
+        planStart: pending?.planStart || it.planStart || "",
+        planEnd: pending?.planEnd || it.planEnd || "",
+      };
+    }
+    function withPendingDates(it){
+      const dates = workingDates(it);
+      return {...it, planStart: dates.planStart, planEnd: dates.planEnd};
+    }
+    function setPendingDates(id, start, end){
+      const baseItem = byId(state.items, id);
+      const baseStart = baseItem?.planStart || "";
+      const baseEnd = baseItem?.planEnd || "";
+      if(start === baseStart && end === baseEnd){
+        ganttPending.delete(id);
+      } else {
+        ganttPending.set(id, {planStart: start, planEnd: end});
+      }
+    }
+    function resetPending(){
+      ganttPending.clear();
+      ganttUndoStack = [];
+      ganttUndoCheckpoint = null;
+    }
+    function refreshGanttActions(){
+      const has = hasPendingChanges();
+      const applyBtn = document.getElementById("gApplyPending");
+      const cancelBtn = document.getElementById("gCancelPending");
+      if(applyBtn) applyBtn.style.display = has ? "inline-flex" : "none";
+      if(cancelBtn) cancelBtn.style.display = has ? "inline-flex" : "none";
+    }
     function sectionColor(id){
       if(!id) return "#cbd5e1";
       if(sectionColorMap[id]) return sectionColorMap[id];
@@ -2013,6 +2073,10 @@
       const cells = [];
       let pxPerDay = scale === "month" ? 2.6 : (scale === "quarter" ? 1.5 : 1.2);
       if(scale === "month"){
+        if(monthsTotal > 30) pxPerDay = 1.2;
+        else if(monthsTotal > 18) pxPerDay = 1.8;
+      }
+      if(scale === "month"){
         let cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
         while(cur <= end){
           const y = cur.getUTCFullYear();
@@ -2050,6 +2114,36 @@
       return {scale, start, end, cells, totalWidth, monthsTotal};
     }
 
+    function baseGanttSort(list, sortMode){
+      if(sortMode === "section"){
+        const sections = sortedSections();
+        const grouped = [];
+        sections.forEach(sec=>{
+          const secItems = list.filter(it=>it.sectionId === sec.id)
+            .sort((a,b)=> (a.number||"").localeCompare(b.number||"") || (a.planStart||"").localeCompare(b.planStart||""));
+          grouped.push(...secItems);
+        });
+        const leftovers = list.filter(it=>!sections.find(s=>s.id===it.sectionId))
+          .sort((a,b)=> (a.number||"").localeCompare(b.number||"") || (a.planStart||"").localeCompare(b.planStart||""));
+        return grouped.concat(leftovers);
+      }
+      return [...list].sort((a,b)=> (a.planStart||"").localeCompare(b.planStart||"") || (a.number||"").localeCompare(b.number||"") || (a.name||"").localeCompare(b.name||""));
+    }
+
+    function sortItemsForGantt(items, sortMode){
+      const displayItems = items.map(withPendingDates);
+      if(hasPendingChanges() && ganttOrder.length){
+        const orderSet = new Set(ganttOrder);
+        const map = new Map(displayItems.map(it=>[it.id,it]));
+        const ordered = ganttOrder.map(id=>map.get(id)).filter(Boolean);
+        const rest = baseGanttSort(displayItems.filter(it=>!orderSet.has(it.id)), sortMode);
+        return ordered.concat(rest);
+      }
+      const ordered = baseGanttSort(displayItems, sortMode);
+      ganttOrder = ordered.map(it=>it.id);
+      return ordered;
+    }
+
     function statusLabel(st){
       if(st === "done") return "Готово";
       if(st === "work") return "В работе";
@@ -2064,6 +2158,12 @@
       const mode = document.getElementById("gMode").value;
       const showCanceled = document.getElementById("gShowCanceled").value === "yes";
       const scalePref = document.getElementById("gScale").value;
+      const sortModeSel = document.getElementById("gSort");
+      const sortMode = sortModeSel ? sortModeSel.value : "date";
+      if(sortMode !== ganttSortMode){
+        ganttSortMode = sortMode;
+        ganttOrder = [];
+      }
 
       let items = filteredItems();
       if(!showCanceled) items = items.filter(it=>it.status !== "canceled");
@@ -2124,7 +2224,7 @@
             const cell = document.createElement("div");
             cell.className = "timelineHeadCell";
             cell.style.width = `${c.width}px`;
-            cell.textContent = `${c.label} ${c.year}`;
+            cell.textContent = monthLabel(timeline.monthsTotal, c);
             rowMonths.appendChild(cell);
           });
         }
@@ -2138,15 +2238,17 @@
       r0.appendChild(headRow);
       inner.appendChild(l0); inner.appendChild(r0);
 
-      if(!timeline) return;
+      if(!timeline){
+        refreshGanttActions();
+        return;
+      }
 
-      items.sort((a,b)=>{
-        return (a.planStart||"").localeCompare(b.planStart||"") || (a.name||"").localeCompare(b.name||"");
-      });
+      const orderedItems = sortItemsForGantt(items, sortMode);
 
-      items.forEach(it=>{
+      orderedItems.forEach(it=>{
         const l = document.createElement("div");
         l.className = "gLeft";
+        l.dataset.id = it.id;
         const secColor = sectionColor(it.sectionId);
         const dates = `${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}`;
         l.innerHTML = `
@@ -2157,7 +2259,7 @@
               <div class="gSub">
                 <span class="statusBadge ${esc(it.status)}">${esc(statusLabel(it.status))}</span>
               </div>
-              <div class="dates">${dates}</div>
+              <div class="dates" data-role="dates" data-id="${esc(it.id)}">${dates}</div>
             </div>
           </div>
         `;
@@ -2183,6 +2285,8 @@
         inner.appendChild(l);
         inner.appendChild(r);
       });
+
+      refreshGanttActions();
     }
 
     function seasonOverlay(timeline){
@@ -2220,6 +2324,7 @@
         bar.style.left = "0px";
         bar.style.width = "120px";
         bar.textContent = "Нет дат";
+        if(!ganttEditable) bar.classList.add("disabled");
         return bar;
       }
 
@@ -2233,8 +2338,15 @@
 
       bar.innerHTML = `<span class="barLabel">${esc(s)} → ${esc(e)}</span><div class="handle left" data-side="start"></div><div class="handle right" data-side="end"></div>`;
 
+      if(!ganttEditable){
+        bar.classList.add("disabled");
+        return bar;
+      }
+
       const startDrag = (type, ev)=>{
+        if(!ganttEditable) return;
         ev.stopPropagation();
+        ganttUndoCheckpoint = clonePendingMap(ganttPending);
         ganttDragging = true;
         ganttDrag = {
           id: it.id,
@@ -2273,6 +2385,11 @@
       return addDays(base, snapped);
     }
 
+    function updateLeftDates(id, startStr, endStr){
+      const datesEl = document.querySelector(`.dates[data-id='${id}']`);
+      if(datesEl) datesEl.textContent = `${startStr} → ${endStr}`;
+    }
+
     function onDragMove(ev){
       if(!ganttDrag) return;
       const {type, startX, start, end, snap, timeline} = ganttDrag;
@@ -2296,32 +2413,33 @@
       newStart = clampDate(newStart, timeline.start, timeline.end);
       newEnd = clampDate(newEnd, timeline.start, timeline.end);
       ganttDrag.preview = {newStart, newEnd};
+      const newStartStr = toISODate(newStart);
+      const newEndStr = toISODate(newEnd);
+      setPendingDates(ganttDrag.id, newStartStr, newEndStr);
       const bar = document.querySelector(`.bar[data-id='${ganttDrag.id}']`);
       if(bar){
         const pos = positionFromDates(newStart, newEnd, timeline);
         bar.style.left = `${pos.left}px`;
         bar.style.width = `${pos.width}px`;
         const label = bar.querySelector('.barLabel');
-        if(label) label.textContent = `${toISODate(newStart)} → ${toISODate(newEnd)}`;
+        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
       }
+      updateLeftDates(ganttDrag.id, newStartStr, newEndStr);
+      refreshGanttActions();
     }
 
     function onDragEnd(){
       if(!ganttDrag) return;
       const {id, preview, start, end} = ganttDrag;
       document.removeEventListener("mousemove", onDragMove);
-      const item = byId(state.items, id);
-      if(item && preview){
-        item.planStart = toISODate(preview.newStart);
-        item.planEnd = toISODate(preview.newEnd);
-        item.updatedAt = nowISO();
-        save();
-        renderAll();
-      } else if(item){
-        item.planStart = toISODate(start);
-        item.planEnd = toISODate(end);
-        save();
+      if(preview){
+        if(ganttUndoCheckpoint) ganttUndoStack.push(ganttUndoCheckpoint);
+        const newStart = toISODate(preview.newStart);
+        const newEnd = toISODate(preview.newEnd);
+        setPendingDates(id, newStart, newEnd);
+        refreshGanttActions();
       }
+      ganttUndoCheckpoint = null;
       ganttDrag = null;
       ganttDragging = false;
     }
@@ -2329,6 +2447,46 @@
     function mName(m){
       const names = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
       return names[m-1] || String(m);
+    }
+
+    function monthLabel(monthsTotal, cell){
+      if(monthsTotal > 30) return String(cell.month);
+      if(monthsTotal > 18) return mName(cell.month).slice(0,2);
+      return `${cell.label} ${cell.year}`;
+    }
+
+    function applyGanttPending(){
+      if(!hasPendingChanges()) return;
+      ganttPending.forEach((dates, id)=>{
+        const item = byId(state.items, id);
+        if(!item) return;
+        item.planStart = dates.planStart;
+        item.planEnd = dates.planEnd;
+        item.updatedAt = nowISO();
+      });
+      save();
+      resetPending();
+      ganttOrder = [];
+      renderAll();
+      refreshGanttActions();
+    }
+
+    function cancelGanttPending(){
+      if(!hasPendingChanges()) return;
+      resetPending();
+      ganttOrder = [];
+      renderGantt();
+      refreshGanttActions();
+    }
+
+    function undoGanttChange(){
+      if(currentTab !== "gantt") return;
+      if(!ganttUndoStack.length) return;
+      ganttPending = clonePendingMap(ganttUndoStack.pop());
+      ganttDrag = null;
+      ganttDragging = false;
+      renderGantt();
+      refreshGanttActions();
     }
 
     /* =========================
@@ -2895,8 +3053,38 @@
     });
 
     // Gantt controls
-    ["gMode","gShowCanceled"].forEach(id=>{
-      document.getElementById(id).addEventListener("change", ()=>renderAll());
+    ["gMode","gShowCanceled","gScale","gSort"].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.addEventListener("change", ()=>{
+        if(id === "gSort") ganttOrder = [];
+        renderAll();
+      });
+    });
+    const gEnableEdit = document.getElementById("gEnableEdit");
+    if(gEnableEdit){
+      gEnableEdit.addEventListener("change", (e)=>{
+        ganttEditable = e.target.checked;
+        renderGantt();
+      });
+      ganttEditable = gEnableEdit.checked;
+    }
+    const gApplyPending = document.getElementById("gApplyPending");
+    if(gApplyPending){
+      gApplyPending.addEventListener("click", applyGanttPending);
+    }
+    const gCancelPending = document.getElementById("gCancelPending");
+    if(gCancelPending){
+      gCancelPending.addEventListener("click", cancelGanttPending);
+    }
+
+    document.addEventListener("keydown", (e)=>{
+      const tag = (e.target && e.target.tagName) || "";
+      if(["INPUT","TEXTAREA"].includes(tag)) return;
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){
+        e.preventDefault();
+        undoGanttChange();
+      }
     });
 
     // Modal controls
