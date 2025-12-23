@@ -402,6 +402,9 @@
     .gRowR{
       border-bottom:1px solid var(--border);
       padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
     .months{
       display:grid;
@@ -420,12 +423,13 @@
     }
     .bar{
       position:absolute;
-      top:4px;
-      bottom:4px;
+      top:6px;
+      bottom:6px;
       border-radius:10px;
-      padding:6px 10px;
+      padding:8px 10px;
       display:flex;
-      align-items:center;
+      align-items:flex-start;
+      justify-content:flex-start;
       font-size:12px;
       font-weight:900;
       white-space:normal;
@@ -436,7 +440,7 @@
       background:rgba(37,99,235,.15);
       color:#0b2a8a;
       cursor:grab;
-      max-height:calc(100% - 8px);
+      max-height:calc(100% - 12px);
     }
     .bar.disabled{cursor:default; border-style:dashed;}
     .bar.disabled .handle{display:none;}
@@ -444,7 +448,7 @@
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
-    .barLabel{display:block; width:100%; text-align:left;}
+    .barLabel{display:block; width:100%; text-align:left; overflow:hidden;}
     .bar .handle{
       position:absolute;
       top:0; bottom:0;
@@ -503,11 +507,40 @@
       flex-shrink:0;
       opacity:0.35;
     }
-    .timelineRow{position:relative; height:46px; background:linear-gradient(180deg,#fff 0%, #fbfbff 100%); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
-    .timelineRow + .timelineRow{margin-top:10px;}
-    .gRowR{display:flex; flex-direction:column; gap:6px;}
+    .timelineRow{
+      position:relative;
+      min-height:56px;
+      height:var(--row-height, auto);
+      background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      padding:6px 0;
+    }
     .gLeft .dates{font-size:12px; color:var(--muted); white-space:nowrap;}
     .gLeft .titleWrap{flex:1; min-width:0; word-break:break-word;}
+    .bar .moveHandle{
+      position:absolute;
+      right:-6px;
+      top:8px;
+      bottom:8px;
+      width:18px;
+      border:none;
+      background:rgba(37,99,235,.85);
+      color:#fff;
+      border-radius:8px;
+      cursor:grab;
+      padding:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      font-size:11px;
+      box-shadow:0 1px 4px rgba(0,0,0,.18);
+      opacity:0.85;
+    }
+    .bar.tinyBar{padding-right:18px;}
+    .bar.tinyBar .moveHandle{opacity:1;}
 
     /* Modal (Etalon-like) */
     .modal{
@@ -1978,7 +2011,10 @@
     let ganttEditable = false;
     let ganttSortMode = "date";
     let ganttJustDragged = false;
+    let ganttDragFrame = null;
     const GANTT_DRAG_THRESHOLD = 3;
+    const GANTT_MIN_ROW_HEIGHT = 56;
+    const GANTT_TINY_HANDLE_WIDTH = 16;
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -2303,6 +2339,7 @@
 
         inner.appendChild(l);
         inner.appendChild(r);
+        syncRowHeight(l, r);
       });
 
       refreshGanttActions();
@@ -2324,8 +2361,9 @@
     }
 
     function buildBar(it, timeline, mode, secColor){
-      const planS = it.planStart || "";
-      const planE = it.planEnd || "";
+      const {planStart: workingStart, planEnd: workingEnd} = workingDates(it);
+      const planS = workingStart || "";
+      const planE = workingEnd || "";
       let s = planS, e = planE;
 
       if(mode === "fact"){
@@ -2350,21 +2388,14 @@
       const start = parseISODate(s);
       const end = parseISODate(e);
       const snap = 1;
-      const pos = positionFromDates(start, end, timeline);
-      bar.style.left = `${pos.left}px`;
-      bar.style.width = `${pos.width}px`;
-      bar.style.borderColor = secColor;
 
-      bar.innerHTML = `<span class="barLabel">${esc(s)} → ${esc(e)}</span><div class="handle left" data-side="start"></div><div class="handle right" data-side="end"></div>`;
-
-      if(!ganttEditable){
-        bar.classList.add("disabled");
-        return bar;
-      }
-
-      const startDrag = (type, ev)=>{
+      function startDrag(type, ev){
         if(!ganttEditable) return;
+        ev.preventDefault();
         ev.stopPropagation();
+        const currentStart = parseISODate(bar.dataset.start || s) || start;
+        const currentEnd = parseISODate(bar.dataset.end || e) || end;
+        const spanDays = Math.max(0, diffDays(currentStart, currentEnd));
         ganttUndoCheckpoint = clonePendingMap(ganttPending);
         ganttDragging = true;
         ganttJustDragged = false;
@@ -2372,15 +2403,62 @@
           id: it.id,
           type,
           startX: ev.clientX,
-          start,
-          end,
+          start: currentStart,
+          end: currentEnd,
+          spanDays,
           snap,
           timeline,
           moved: false
         };
         document.addEventListener("mousemove", onDragMove);
         document.addEventListener("mouseup", onDragEnd, {once:true});
-      };
+      }
+
+      function updateTinyHandle(width){
+        const tiny = width < GANTT_TINY_HANDLE_WIDTH && ganttEditable;
+        let moveHandle = bar.querySelector('.moveHandle');
+        if(tiny){
+          bar.classList.add("tinyBar");
+          if(!moveHandle){
+            moveHandle = document.createElement('button');
+            moveHandle.type = 'button';
+            moveHandle.className = 'moveHandle';
+            moveHandle.textContent = '⇆';
+            moveHandle.addEventListener('mousedown', (ev)=>startDrag('move', ev));
+            bar.appendChild(moveHandle);
+          }
+        } else {
+          bar.classList.remove("tinyBar");
+          if(moveHandle) moveHandle.remove();
+        }
+      }
+
+      function applyBarGeometry(newStart, newEnd){
+        const newStartStr = toISODate(newStart);
+        const newEndStr = toISODate(newEnd);
+        const pos = positionFromDates(newStart, newEnd, timeline);
+        bar.style.left = `${pos.left}px`;
+        bar.style.width = `${pos.width}px`;
+        bar.dataset.start = newStartStr;
+        bar.dataset.end = newEndStr;
+        const label = bar.querySelector('.barLabel');
+        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
+        updateTinyHandle(pos.width);
+      }
+
+      bar.style.borderColor = secColor;
+
+      bar.innerHTML = `<span class="barLabel">${esc(s)} → ${esc(e)}</span><div class="handle left" data-side="start"></div><div class="handle right" data-side="end"></div>`;
+
+      applyBarGeometry(start, end);
+
+      if(!ganttEditable){
+        bar.classList.add("disabled");
+        return bar;
+      }
+
+      bar._updateTinyHandle = updateTinyHandle;
+
       bar.addEventListener("mousedown", (ev)=>{
         if(ev.target.classList.contains("handle")) return;
         startDrag("move", ev);
@@ -2411,9 +2489,53 @@
       if(datesEl) datesEl.textContent = `${startStr} → ${endStr}`;
     }
 
+    function syncRowHeight(leftCell, rightCell){
+      const leftRow = leftCell?.querySelector('.gRowL');
+      const timelineRow = rightCell?.querySelector('.timelineRow');
+      if(!leftRow || !timelineRow) return;
+      const applyHeight = ()=>{
+        const h = Math.max(GANTT_MIN_ROW_HEIGHT, leftRow.offsetHeight);
+        timelineRow.style.setProperty('--row-height', `${h}px`);
+        timelineRow.style.height = `${h}px`;
+      };
+      applyHeight();
+      const ro = new ResizeObserver(applyHeight);
+      ro.observe(leftRow);
+    }
+
+    function applyDragPreview(){
+      if(!ganttDrag || !ganttDrag.preview) return;
+      const {timeline, id, preview} = ganttDrag;
+      const {newStart, newEnd} = preview;
+      const newStartStr = toISODate(newStart);
+      const newEndStr = toISODate(newEnd);
+      setPendingDates(id, newStartStr, newEndStr);
+      const bar = document.querySelector(`.bar[data-id='${id}']`);
+      if(bar){
+        const pos = positionFromDates(newStart, newEnd, timeline);
+        bar.style.left = `${pos.left}px`;
+        bar.style.width = `${pos.width}px`;
+        bar.dataset.start = newStartStr;
+        bar.dataset.end = newEndStr;
+        const label = bar.querySelector('.barLabel');
+        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
+        if(typeof bar._updateTinyHandle === "function") bar._updateTinyHandle(pos.width);
+      }
+      updateLeftDates(id, newStartStr, newEndStr);
+      refreshGanttActions();
+    }
+
+    function queueDragPreview(){
+      if(ganttDragFrame) return;
+      ganttDragFrame = requestAnimationFrame(()=>{
+        ganttDragFrame = null;
+        applyDragPreview();
+      });
+    }
+
     function onDragMove(ev){
       if(!ganttDrag) return;
-      const {type, startX, start, end, snap, timeline} = ganttDrag;
+      const {type, startX, start, end, snap, timeline, spanDays} = ganttDrag;
       const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
       const pxPerDay = timeline.totalWidth / totalDays;
       const deltaPx = ev.clientX - startX;
@@ -2425,8 +2547,7 @@
       let newEnd = end;
       if(type === "move"){
         newStart = snapDate(start, deltaDays, snap);
-        const span = Math.max(1, diffDays(start, end));
-        newEnd = addDays(newStart, span);
+        newEnd = addDays(newStart, spanDays);
       } else if(type === "start"){
         newStart = snapDate(start, deltaDays, snap);
         if(newStart > newEnd) newStart = addDays(newEnd, -1);
@@ -2437,31 +2558,20 @@
       newStart = clampDate(newStart, timeline.start, timeline.end);
       newEnd = clampDate(newEnd, timeline.start, timeline.end);
       ganttDrag.preview = {newStart, newEnd};
-      const newStartStr = toISODate(newStart);
-      const newEndStr = toISODate(newEnd);
-      setPendingDates(ganttDrag.id, newStartStr, newEndStr);
-      const bar = document.querySelector(`.bar[data-id='${ganttDrag.id}']`);
-      if(bar){
-        const pos = positionFromDates(newStart, newEnd, timeline);
-        bar.style.left = `${pos.left}px`;
-        bar.style.width = `${pos.width}px`;
-        const label = bar.querySelector('.barLabel');
-        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-      }
-      updateLeftDates(ganttDrag.id, newStartStr, newEndStr);
-      refreshGanttActions();
+      queueDragPreview();
     }
 
     function onDragEnd(){
       if(!ganttDrag) return;
-      const {id, preview, start, end} = ganttDrag;
+      const {id, preview} = ganttDrag;
       document.removeEventListener("mousemove", onDragMove);
+      if(ganttDragFrame){
+        cancelAnimationFrame(ganttDragFrame);
+        ganttDragFrame = null;
+      }
       if(preview){
+        applyDragPreview();
         if(ganttUndoCheckpoint) ganttUndoStack.push(ganttUndoCheckpoint);
-        const newStart = toISODate(preview.newStart);
-        const newEnd = toISODate(preview.newEnd);
-        setPendingDates(id, newStart, newEnd);
-        refreshGanttActions();
       }
       ganttJustDragged = !!ganttDrag.moved;
       ganttUndoCheckpoint = null;
