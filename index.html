@@ -38,9 +38,10 @@
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
     }
     *{box-sizing:border-box}
-    html,body{height:100%}
+    html,body{height:100%; overflow-x:hidden;}
     body{
       margin:0; font-family:var(--sans); color:var(--fg); background:var(--bg);
+      overflow-x:hidden;
     }
     body.modal-open{overflow:hidden}
 
@@ -89,6 +90,7 @@
       display:grid;
       grid-template-columns: 260px 1fr;
       min-height:calc(100vh - 54px);
+      overflow-x:hidden;
     }
     @media (max-width: 1100px){
       .layout{grid-template-columns:1fr}
@@ -147,6 +149,7 @@
     /* Main */
     .main{
       padding:12px;
+      overflow-x:hidden;
     }
     .panel{
       background:var(--panel);
@@ -349,6 +352,7 @@
     /* Gantt */
     .gantt{
       padding:12px;
+      overflow-x:hidden;
     }
     .gTop{
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
@@ -358,10 +362,12 @@
     .gGrid{
       border:1px solid var(--border);
       border-radius:12px;
-      overflow:auto;
+      overflow-x:auto;
+      overflow-y:auto;
       background:#fff;
       box-shadow:0 1px 2px rgba(0,0,0,.05);
       max-width:100%;
+      width:100%;
     }
     .gInner{
       min-width:100%;
@@ -412,31 +418,25 @@
       font-size:11px;
       color:#374151;
     }
-    .barWrap{
-      position:relative;
-      height:36px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
-      overflow:hidden;
-    }
     .bar{
       position:absolute;
-      top:6px;
-      height:24px;
+      top:4px;
+      bottom:4px;
       border-radius:10px;
-      padding:0 10px;
+      padding:6px 10px;
       display:flex;
       align-items:center;
       font-size:12px;
       font-weight:900;
-      white-space:nowrap;
+      white-space:normal;
+      line-height:1.2;
+      word-break:break-word;
       overflow:hidden;
-      text-overflow:ellipsis;
       border:1px solid rgba(37,99,235,.35);
       background:rgba(37,99,235,.15);
       color:#0b2a8a;
       cursor:grab;
+      max-height:calc(100% - 8px);
     }
     .bar.disabled{cursor:default; border-style:dashed;}
     .bar.disabled .handle{display:none;}
@@ -444,6 +444,7 @@
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
+    .barLabel{display:block; width:100%; text-align:left;}
     .bar .handle{
       position:absolute;
       top:0; bottom:0;
@@ -502,7 +503,7 @@
       flex-shrink:0;
       opacity:0.35;
     }
-    .timelineRow{position:relative; height:36px; background:linear-gradient(180deg,#fff 0%, #fbfbff 100%); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
+    .timelineRow{position:relative; height:46px; background:linear-gradient(180deg,#fff 0%, #fbfbff 100%); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
     .timelineRow + .timelineRow{margin-top:10px;}
     .gRowR{display:flex; flex-direction:column; gap:6px;}
     .gLeft .dates{font-size:12px; color:var(--muted); white-space:nowrap;}
@@ -1976,6 +1977,8 @@
     let ganttUndoCheckpoint = null;
     let ganttEditable = false;
     let ganttSortMode = "date";
+    let ganttJustDragged = false;
+    const GANTT_DRAG_THRESHOLD = 3;
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -2263,7 +2266,15 @@
             </div>
           </div>
         `;
-        l.addEventListener("click", (e)=>{ if(ganttDragging) return; openModal(it.id); });
+        l.addEventListener("click", (e)=>{
+          if(ganttDragging || ganttJustDragged){
+            e.preventDefault();
+            e.stopPropagation();
+            ganttJustDragged = false;
+            return;
+          }
+          openModal(it.id);
+        });
 
         const r = document.createElement("div");
         r.className = "gRowR";
@@ -2280,7 +2291,15 @@
         const bar = buildBar(it, timeline, mode, secColor);
         barRow.appendChild(bar);
         r.appendChild(barRow);
-        r.addEventListener("click", (e)=>{ if(ganttDragging) return; openModal(it.id); });
+        r.addEventListener("click", (e)=>{
+          if(ganttDragging || ganttJustDragged){
+            e.preventDefault();
+            e.stopPropagation();
+            ganttJustDragged = false;
+            return;
+          }
+          openModal(it.id);
+        });
 
         inner.appendChild(l);
         inner.appendChild(r);
@@ -2330,7 +2349,7 @@
 
       const start = parseISODate(s);
       const end = parseISODate(e);
-      const snap = timeline.scale === "month" ? 1 : (timeline.scale === "quarter" ? 7 : 30);
+      const snap = 1;
       const pos = positionFromDates(start, end, timeline);
       bar.style.left = `${pos.left}px`;
       bar.style.width = `${pos.width}px`;
@@ -2348,6 +2367,7 @@
         ev.stopPropagation();
         ganttUndoCheckpoint = clonePendingMap(ganttPending);
         ganttDragging = true;
+        ganttJustDragged = false;
         ganttDrag = {
           id: it.id,
           type,
@@ -2355,7 +2375,8 @@
           start,
           end,
           snap,
-          timeline
+          timeline,
+          moved: false
         };
         document.addEventListener("mousemove", onDragMove);
         document.addEventListener("mouseup", onDragEnd, {once:true});
@@ -2397,6 +2418,9 @@
       const pxPerDay = timeline.totalWidth / totalDays;
       const deltaPx = ev.clientX - startX;
       const deltaDays = deltaPx / pxPerDay;
+      if(!ganttDrag.moved && Math.abs(deltaPx) > GANTT_DRAG_THRESHOLD){
+        ganttDrag.moved = true;
+      }
       let newStart = start;
       let newEnd = end;
       if(type === "move"){
@@ -2439,6 +2463,7 @@
         setPendingDates(id, newStart, newEnd);
         refreshGanttActions();
       }
+      ganttJustDragged = !!ganttDrag.moved;
       ganttUndoCheckpoint = null;
       ganttDrag = null;
       ganttDragging = false;
