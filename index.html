@@ -362,7 +362,7 @@
       box-shadow:0 1px 2px rgba(0,0,0,.05);
     }
     .gInner{
-      min-width:1200px;
+      min-width:1000px;
       display:grid;
       grid-template-columns: 420px 1fr;
     }
@@ -382,9 +382,14 @@
     .gRowL{
       padding:10px;
       border-bottom:1px solid var(--border);
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      overflow:hidden;
+      word-break:break-word;
     }
-    .gName{font-weight:900; font-size:13px; margin-bottom:4px}
-    .gSub{font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap}
+    .gName{font-weight:900; font-size:13px; margin-bottom:4px; word-break:break-word;}
+    .gSub{font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; word-break:break-word;}
     .gRowR{
       border-bottom:1px solid var(--border);
       padding:10px;
@@ -428,10 +433,75 @@
       border:1px solid rgba(37,99,235,.35);
       background:rgba(37,99,235,.15);
       color:#0b2a8a;
+      cursor:grab;
     }
+    .bar:active{cursor:grabbing}
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
+    .bar .handle{
+      position:absolute;
+      top:0; bottom:0;
+      width:10px;
+      cursor:ew-resize;
+    }
+    .bar .handle.left{left:0;}
+    .bar .handle.right{right:0;}
+    .statusBadge{
+      display:inline-flex;
+      align-items:center;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      border:1px solid var(--border);
+      background:var(--chipBg);
+      color:var(--chipFg);
+      word-break:break-word;
+      max-width:100%;
+    }
+    .statusBadge.work{background:rgba(217,119,6,.15); border-color:rgba(217,119,6,.35); color:#92400e;}
+    .statusBadge.planned{background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.32); color:#0b2a8a;}
+    .statusBadge.done{background:rgba(22,163,74,.12); border-color:rgba(22,163,74,.32); color:#065f46;}
+    .statusBadge.canceled{background:rgba(220,38,38,.12); border-color:rgba(220,38,38,.32); color:#7f1d1d;}
+    .sectionMarker{
+      width:6px;
+      min-width:6px;
+      border-radius:6px;
+      height:100%;
+      margin-top:2px;
+    }
+    .timelineHeadRow{display:flex; gap:2px;}
+    .timelineHeadCell{
+      text-align:center;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:#fff;
+      padding:6px 4px;
+      font-size:11px;
+      flex-shrink:0;
+      white-space:nowrap;
+    }
+    .timelineBody{position:relative;}
+    .timelineHead,.timelineRows{position:relative; z-index:1;}
+    .timelineWrap{position:relative;}
+    .seasonOverlay{
+      position:absolute;
+      left:0; top:0; bottom:0;
+      pointer-events:none;
+      display:flex;
+      gap:2px;
+      z-index:0;
+    }
+    .seasonBlock{
+      flex-shrink:0;
+      opacity:0.35;
+    }
+    .timelineRow{position:relative; height:36px; background:linear-gradient(180deg,#fff 0%, #fbfbff 100%); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
+    .timelineRow + .timelineRow{margin-top:10px;}
+    .gRowR{display:flex; flex-direction:column; gap:6px;}
+    .gLeft .dates{font-size:12px; color:var(--muted); white-space:nowrap;}
+    .gLeft .titleWrap{flex:1; min-width:0; word-break:break-word;}
 
     /* Modal (Etalon-like) */
     .modal{ 
@@ -718,21 +788,30 @@
         </div>
 
         <div id="viewGantt" class="view" style="display:none">
-          <div class="gantt">
-            <div class="gTop">
-              <div class="left" style="display:flex; gap:10px; flex-wrap:wrap">
-                <div class="field" style="margin:0; min-width:220px">
-                  <label>Полоса по</label>
-                  <select id="gMode">
-                    <option value="plan">Плановым датам</option>
-                    <option value="fact">Факт (если есть, иначе план)</option>
-                  </select>
-                </div>
-                <div class="field" style="margin:0; min-width:220px">
-                  <label>Показывать отменённые</label>
-                  <select id="gShowCanceled">
-                    <option value="no">Нет</option>
-                    <option value="yes">Да</option>
+            <div class="gantt">
+              <div class="gTop">
+                <div class="left" style="display:flex; gap:10px; flex-wrap:wrap">
+                  <div class="field" style="margin:0; min-width:220px">
+                    <label>Полоса по</label>
+                    <select id="gMode">
+                      <option value="plan">Плановым датам</option>
+                      <option value="fact">Факт (если есть, иначе план)</option>
+                    </select>
+                  </div>
+                  <div class="field" style="margin:0; min-width:220px">
+                    <label>Масштаб</label>
+                    <select id="gScale">
+                      <option value="auto">Авто</option>
+                      <option value="month">Месяцы</option>
+                      <option value="quarter">Кварталы</option>
+                      <option value="year">Годы</option>
+                    </select>
+                  </div>
+                  <div class="field" style="margin:0; min-width:220px">
+                    <label>Показывать отменённые</label>
+                    <select id="gShowCanceled">
+                      <option value="no">Нет</option>
+                      <option value="yes">Да</option>
                   </select>
                 </div>
               </div>
@@ -1214,6 +1293,7 @@
       state.dk = state.dk || {};
       state.dk.periodStart = state.dk.periodStart || "";
       state.dk.periodEnd = state.dk.periodEnd || "";
+      state.dk.periodUserChanged = !!state.dk.periodUserChanged;
       state.dk.owner = state.dk.owner || "";
       state.dk.approvedBy = state.dk.approvedBy || "";
       state.dk.approvedDoc = state.dk.approvedDoc || "";
@@ -1237,8 +1317,10 @@
       });
       const starts = state.items.map(it=>it.planStart).filter(Boolean).sort();
       const ends = state.items.map(it=>it.planEnd).filter(Boolean).sort();
-      if(!state.dk.periodStart && starts.length) state.dk.periodStart = starts[0];
-      if(!state.dk.periodEnd && ends.length) state.dk.periodEnd = ends[ends.length-1];
+      if(!state.dk.periodUserChanged){
+        if(!state.dk.periodStart && starts.length) state.dk.periodStart = starts[0];
+        if(!state.dk.periodEnd && ends.length) state.dk.periodEnd = ends[ends.length-1];
+      }
       if(!state.dk.periodStart) state.dk.periodStart = todayDate();
       if(!state.dk.periodEnd) state.dk.periodEnd = todayDate();
     }
@@ -1251,6 +1333,7 @@
     let editingId = null;
     let dragId = null;
     let dragGroup = null;
+    let periodTouched = false;
     let currentReports = [];
     let currentKpiTargets = [];
     let currentFinalReport = null;
@@ -1380,6 +1463,17 @@
         }
         return true;
       });
+    }
+
+    function autoFillPeriodFromItems(){
+      if(state.dk.periodUserChanged) return;
+      const starts = state.items.map(it=>it.planStart).filter(Boolean).sort();
+      const ends = state.items.map(it=>it.planEnd).filter(Boolean).sort();
+      if(!starts.length || !ends.length) return;
+      const minS = starts[0];
+      const maxE = ends[ends.length-1];
+      if(minS && state.dk.periodStart !== minS) state.dk.periodStart = minS;
+      if(maxE && state.dk.periodEnd !== maxE) state.dk.periodEnd = maxE;
     }
 
     function setDKMini(){
@@ -1855,18 +1949,124 @@
     }
 
     /* =========================
-       Gantt (read-only bars, create via plus)
+       Gantt (interactive)
     ========================= */
+    let ganttDrag = null;
+    let ganttDragging = false;
+    const sectionColorMap = {};
+    const seasonColors = {
+      12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
+      3:"#dcfce7",4:"#dcfce7",5:"#dcfce7",
+      6:"#ffedd5",7:"#ffedd5",8:"#ffedd5",
+      9:"#fef9c3",10:"#fef9c3",11:"#fef9c3",
+    };
+    function sectionColor(id){
+      if(!id) return "#cbd5e1";
+      if(sectionColorMap[id]) return sectionColorMap[id];
+      const idx = Object.keys(sectionColorMap).length;
+      const hue = (idx*67)%360;
+      const col = `hsl(${hue},70%,70%)`;
+      sectionColorMap[id] = col;
+      return col;
+    }
+    function parseISODate(str){
+      if(!str) return null;
+      const [y,m,d] = str.split("-").map(n=>parseInt(n,10));
+      if(!y||!m||!d) return null;
+      return new Date(Date.UTC(y,m-1,d));
+    }
+    function toISODate(date){
+      return date.toISOString().slice(0,10);
+    }
+    function addDays(date, days){
+      const d = new Date(date.getTime());
+      d.setUTCDate(d.getUTCDate()+days);
+      return d;
+    }
+    function clampDate(date, min, max){
+      if(date < min) return new Date(min.getTime());
+      if(date > max) return new Date(max.getTime());
+      return date;
+    }
+    function diffDays(a,b){
+      return Math.round((b.getTime()-a.getTime())/(1000*60*60*24));
+    }
+    function monthDays(y,m){
+      return new Date(Date.UTC(y,m,0)).getUTCDate();
+    }
+    function buildTimeline(scalePref){
+      const startStr = state.dk.periodStart;
+      const endStr = state.dk.periodEnd;
+      const start = parseISODate(startStr);
+      const end = parseISODate(endStr);
+      if(!start || !end) return null;
+      if(end < start) return null;
+      const monthsTotal = (end.getUTCFullYear()-start.getUTCFullYear())*12 + (end.getUTCMonth()-start.getUTCMonth()) + 1;
+      let scale = scalePref;
+      if(scale === "auto"){
+        if(monthsTotal > 24) scale = "quarter";
+        else scale = "month";
+      }
+
+      const cells = [];
+      let pxPerDay = scale === "month" ? 2.6 : (scale === "quarter" ? 1.5 : 1.2);
+      if(scale === "month"){
+        let cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+        while(cur <= end){
+          const y = cur.getUTCFullYear();
+          const m = cur.getUTCMonth();
+          const days = monthDays(y, m+1);
+          const cellStart = cur;
+          const cellEnd = new Date(Date.UTC(y, m, days));
+          const width = (diffDays(cellStart, cellEnd)+1) * pxPerDay;
+          cells.push({label: mName(m+1), month:m+1, year:y, width, start: cellStart});
+          cur = new Date(Date.UTC(y, m+1, 1));
+        }
+      } else if(scale === "quarter"){
+        let cur = new Date(Date.UTC(start.getUTCFullYear(), Math.floor(start.getUTCMonth()/3)*3, 1));
+        while(cur <= end){
+          const y = cur.getUTCFullYear();
+          const q = Math.floor(cur.getUTCMonth()/3)+1;
+          const next = new Date(Date.UTC(y, q*3, 1));
+          const cellEnd = addDays(next, -1);
+          const width = (diffDays(cur, cellEnd)+1)*pxPerDay;
+          cells.push({label: `Q${q} ${y}`, quarter:q, year:y, width, start: cur});
+          cur = next;
+        }
+      } else {
+        let cur = new Date(Date.UTC(start.getUTCFullYear(),0,1));
+        while(cur <= end){
+          const y = cur.getUTCFullYear();
+          const next = new Date(Date.UTC(y+1,0,1));
+          const cellEnd = addDays(next,-1);
+          const width = (diffDays(cur, cellEnd)+1)*pxPerDay;
+          cells.push({label:String(y), year:y, width, start: cur});
+          cur = next;
+        }
+      }
+      const totalWidth = cells.reduce((m,c)=>m+c.width,0);
+      return {scale, start, end, cells, totalWidth, monthsTotal};
+    }
+
+    function statusLabel(st){
+      if(st === "done") return "Готово";
+      if(st === "work") return "В работе";
+      if(st === "canceled") return "Отменено";
+      return "Необходимо сделать";
+    }
+
     function renderGantt(){
       const inner = document.getElementById("gInner");
       inner.innerHTML = "";
 
       const mode = document.getElementById("gMode").value;
       const showCanceled = document.getElementById("gShowCanceled").value === "yes";
-      const year = parseInt((state.dk.year||String(new Date().getFullYear())).trim(), 10) || new Date().getFullYear();
+      const scalePref = document.getElementById("gScale").value;
 
       let items = filteredItems();
       if(!showCanceled) items = items.filter(it=>it.status !== "canceled");
+
+      const timeline = buildTimeline(scalePref);
 
       // Head
       const hL = document.createElement("div");
@@ -1874,99 +2074,254 @@
       hL.textContent = "Мероприятия";
       const hR = document.createElement("div");
       hR.className = "gHeadR";
-      hR.textContent = `Шкала: ${year} (месяцы)`;
+      hR.textContent = timeline ? `Шкала: ${toISODate(timeline.start)} → ${toISODate(timeline.end)}` : "Шкала не задана";
       inner.appendChild(hL); inner.appendChild(hR);
 
-      // months row
       const l0 = document.createElement("div");
       l0.className = "gLeft";
-      l0.innerHTML = `<div class="gRowL"><div class="gName">Раздел / Ответственный</div><div class="gSub">Клик по строке — карточка</div></div>`;
+      l0.innerHTML = `<div class="gRowL"><div class="gName">Номер, мероприятие, статус, даты</div><div class="gSub">Клик по строке — карточка</div></div>`;
       const r0 = document.createElement("div");
-      r0.innerHTML = `<div class="gRowR"><div class="months">${Array.from({length:12},(_,i)=>`<div class="mCell">${mName(i+1)}</div>`).join("")}</div></div>`;
+      const headRow = document.createElement("div");
+      headRow.className = "gRowR";
+      if(timeline){
+        const head = document.createElement("div");
+        head.className = "timelineHead timelineWrap";
+        head.style.width = `${timeline.totalWidth}px`;
+        const overlay = seasonOverlay(timeline);
+        if(overlay){
+          overlay.style.height = "100%";
+          head.appendChild(overlay);
+        }
+
+        const rowYears = document.createElement("div");
+        rowYears.className = "timelineHeadRow";
+        if(timeline.scale === "month" && timeline.monthsTotal > 12){
+          const byYear = {};
+          timeline.cells.forEach(c=>{ byYear[c.year] = (byYear[c.year]||0) + c.width; });
+          Object.entries(byYear).forEach(([y,w])=>{
+            const cell = document.createElement("div");
+            cell.className = "timelineHeadCell";
+            cell.style.width = `${w}px`;
+            cell.textContent = `${y}`;
+            rowYears.appendChild(cell);
+          });
+        } else if(timeline.scale !== "month"){
+          timeline.cells.forEach(c=>{
+            const cell = document.createElement("div");
+            cell.className = "timelineHeadCell";
+            cell.style.width = `${c.width}px`;
+            cell.textContent = c.label;
+            rowYears.appendChild(cell);
+          });
+        }
+
+        const rowMonths = document.createElement("div");
+        rowMonths.className = "timelineHeadRow";
+        if(timeline.scale === "month"){
+          timeline.cells.forEach(c=>{
+            const cell = document.createElement("div");
+            cell.className = "timelineHeadCell";
+            cell.style.width = `${c.width}px`;
+            cell.textContent = `${c.label} ${c.year}`;
+            rowMonths.appendChild(cell);
+          });
+        }
+
+        if(rowYears.childElementCount) head.appendChild(rowYears);
+        if(rowMonths.childElementCount) head.appendChild(rowMonths);
+        headRow.appendChild(head);
+      } else {
+        headRow.innerHTML = `<div class="note">Укажите период</div>`;
+      }
+      r0.appendChild(headRow);
       inner.appendChild(l0); inner.appendChild(r0);
 
-      // by sections
-      const secs = sortedSections();
-      secs.forEach(sec=>{
-        const inSec = items.filter(it=>it.sectionId===sec.id);
-        if(!inSec.length) return;
+      if(!timeline) return;
 
-        const lS = document.createElement("div");
-        lS.className = "gLeft";
-        lS.innerHTML = `<div class="gRowL"><div class="gName">${esc(sectionDisplayName(sec))}</div><div class="gSub"><span class="chip muted">${inSec.length} шт.</span></div></div>`;
-        const rS = document.createElement("div");
-        rS.innerHTML = `<div class="gRowR"><div class="barWrap" style="height:10px;background:var(--panel2)"></div></div>`;
-        inner.appendChild(lS); inner.appendChild(rS);
+      items.sort((a,b)=>{
+        return (a.planStart||"").localeCompare(b.planStart||"") || (a.name||"").localeCompare(b.name||"");
+      });
 
-        inSec.sort((a,b)=>(a.planStart||"").localeCompare(b.planStart||"") || (a.name||"").localeCompare(b.name||""))
-          .forEach(it=>{
-            const l = document.createElement("div");
-            l.className = "gLeft";
-            l.innerHTML = `
-              <div class="gRowL">
-                <div class="gName">${esc(it.name||"—")}</div>
-                <div class="gSub">
-                  <span class="chip">${esc(it.owner||"—")}</span>
-                  <span class="chip muted">${esc((it.planStart||"—") + " → " + (it.planEnd||"—"))}</span>
-                </div>
+      items.forEach(it=>{
+        const l = document.createElement("div");
+        l.className = "gLeft";
+        const secColor = sectionColor(it.sectionId);
+        const dates = `${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}`;
+        l.innerHTML = `
+          <div class="gRowL">
+            <div class="sectionMarker" style="background:${secColor}"></div>
+            <div class="titleWrap">
+              <div class="gName">${esc([it.number, it.name||"—"].filter(Boolean).join(" "))}</div>
+              <div class="gSub">
+                <span class="statusBadge ${esc(it.status)}">${esc(statusLabel(it.status))}</span>
               </div>
-            `;
-            l.addEventListener("click", ()=>openModal(it.id));
+              <div class="dates">${dates}</div>
+            </div>
+          </div>
+        `;
+        l.addEventListener("click", (e)=>{ if(ganttDragging) return; openModal(it.id); });
 
-            const r = document.createElement("div");
-            r.className = "gRowR";
-            r.innerHTML = ganttBarHTML(it, year, mode);
-            r.addEventListener("click", ()=>openModal(it.id));
+        const r = document.createElement("div");
+        r.className = "gRowR";
+        const barRow = document.createElement("div");
+        barRow.className = "timelineRow";
+        barRow.style.width = `${timeline.totalWidth}px`;
+        if(timeline.scale === "month"){
+          const overlay = seasonOverlay(timeline);
+          if(overlay){
+            overlay.style.height = "100%";
+            barRow.appendChild(overlay);
+          }
+        }
+        const bar = buildBar(it, timeline, mode, secColor);
+        barRow.appendChild(bar);
+        r.appendChild(barRow);
+        r.addEventListener("click", (e)=>{ if(ganttDragging) return; openModal(it.id); });
 
-            inner.appendChild(l);
-            inner.appendChild(r);
-          });
+        inner.appendChild(l);
+        inner.appendChild(r);
       });
     }
 
-    function ganttBarHTML(it, year, mode){
+    function seasonOverlay(timeline){
+      if(!timeline || timeline.scale !== "month") return null;
+      const wrap = document.createElement("div");
+      wrap.className = "seasonOverlay";
+      timeline.cells.forEach(c=>{
+        const b = document.createElement("div");
+        b.className = "seasonBlock";
+        b.style.width = `${c.width}px`;
+        b.style.background = seasonColors[c.month] || "transparent";
+        wrap.appendChild(b);
+      });
+      wrap.style.width = `${timeline.totalWidth}px`;
+      return wrap;
+    }
+
+    function buildBar(it, timeline, mode, secColor){
       const planS = it.planStart || "";
       const planE = it.planEnd || "";
       let s = planS, e = planE;
 
       if(mode === "fact"){
-        // fact not stored in this version; keep plan behavior (we will extend later)
         s = planS; e = planE;
       }
 
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.dataset.id = it.id;
+      if(it.status === "done") bar.classList.add("done");
+      else if(it.status === "work") bar.classList.add("work");
+      else if(it.status === "canceled") bar.classList.add("over");
+
       if(!s || !e){
-        return `<div class="barWrap"><div style="padding:8px 10px; color:var(--muted); font-size:12px">Нет дат</div></div>`;
+        bar.style.left = "0px";
+        bar.style.width = "120px";
+        bar.textContent = "Нет дат";
+        return bar;
       }
 
-      const sY = parseInt(s.slice(0,4),10), sM = parseInt(s.slice(5,7),10);
-      const eY = parseInt(e.slice(0,4),10), eM = parseInt(e.slice(5,7),10);
+      const start = parseISODate(s);
+      const end = parseISODate(e);
+      const snap = timeline.scale === "month" ? 1 : (timeline.scale === "quarter" ? 7 : 30);
+      const pos = positionFromDates(start, end, timeline);
+      bar.style.left = `${pos.left}px`;
+      bar.style.width = `${pos.width}px`;
+      bar.style.borderColor = secColor;
 
-      const startMonth = (sY < year) ? 1 : (sY > year ? 13 : sM);
-      const endMonth   = (eY > year) ? 12 : (eY < year ? 0 : eM);
+      bar.innerHTML = `<span class="barLabel">${esc(s)} → ${esc(e)}</span><div class="handle left" data-side="start"></div><div class="handle right" data-side="end"></div>`;
 
-      if(startMonth > 12 || endMonth < 1){
-        return `<div class="barWrap"><div style="padding:8px 10px; color:var(--muted); font-size:12px">Вне выбранного года</div></div>`;
+      const startDrag = (type, ev)=>{
+        ev.stopPropagation();
+        ganttDragging = true;
+        ganttDrag = {
+          id: it.id,
+          type,
+          startX: ev.clientX,
+          start,
+          end,
+          snap,
+          timeline
+        };
+        document.addEventListener("mousemove", onDragMove);
+        document.addEventListener("mouseup", onDragEnd, {once:true});
+      };
+      bar.addEventListener("mousedown", (ev)=>{
+        if(ev.target.classList.contains("handle")) return;
+        startDrag("move", ev);
+      });
+      bar.querySelectorAll(".handle").forEach(h=>{
+        h.addEventListener("mousedown", (ev)=>startDrag(h.dataset.side, ev));
+      });
+      return bar;
+    }
+
+    function positionFromDates(start, end, timeline){
+      const s = start < timeline.start ? timeline.start : start;
+      const e = end > timeline.end ? timeline.end : end;
+      const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
+      const pxPerDay = timeline.totalWidth / totalDays;
+      const leftDays = Math.max(0, diffDays(timeline.start, s));
+      const widthDays = Math.max(1, diffDays(s, e)+1);
+      return {left: leftDays * pxPerDay, width: widthDays * pxPerDay};
+    }
+
+    function snapDate(base, deltaDays, snap){
+      const snapped = Math.round(deltaDays / snap) * snap;
+      return addDays(base, snapped);
+    }
+
+    function onDragMove(ev){
+      if(!ganttDrag) return;
+      const {type, startX, start, end, snap, timeline} = ganttDrag;
+      const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
+      const pxPerDay = timeline.totalWidth / totalDays;
+      const deltaPx = ev.clientX - startX;
+      const deltaDays = deltaPx / pxPerDay;
+      let newStart = start;
+      let newEnd = end;
+      if(type === "move"){
+        newStart = snapDate(start, deltaDays, snap);
+        const span = Math.max(1, diffDays(start, end));
+        newEnd = addDays(newStart, span);
+      } else if(type === "start"){
+        newStart = snapDate(start, deltaDays, snap);
+        if(newStart > newEnd) newStart = addDays(newEnd, -1);
+      } else if(type === "end"){
+        newEnd = snapDate(end, deltaDays, snap);
+        if(newEnd < newStart) newEnd = addDays(newStart, 1);
       }
+      newStart = clampDate(newStart, timeline.start, timeline.end);
+      newEnd = clampDate(newEnd, timeline.start, timeline.end);
+      ganttDrag.preview = {newStart, newEnd};
+      const bar = document.querySelector(`.bar[data-id='${ganttDrag.id}']`);
+      if(bar){
+        const pos = positionFromDates(newStart, newEnd, timeline);
+        bar.style.left = `${pos.left}px`;
+        bar.style.width = `${pos.width}px`;
+        const label = bar.querySelector('.barLabel');
+        if(label) label.textContent = `${toISODate(newStart)} → ${toISODate(newEnd)}`;
+      }
+    }
 
-      const sm = Math.max(1, Math.min(12, startMonth));
-      const em = Math.max(1, Math.min(12, endMonth));
-      const leftPct = ((sm-1)/12)*100;
-      const widthPct = (Math.max(1,(em-sm+1))/12)*100;
-
-      let cls = "";
-      if(it.status === "done") cls = "done";
-      else if(it.status === "work") cls = "work";
-      else if(it.status === "canceled") cls = "over";
-
-      const label = `${mName(sm)}–${mName(em)}`;
-
-      return `
-        <div class="barWrap">
-          <div class="bar ${cls}" style="left:${leftPct}%; width:${widthPct}%;">
-            ${esc(label)}
-          </div>
-        </div>
-      `;
+    function onDragEnd(){
+      if(!ganttDrag) return;
+      const {id, preview, start, end} = ganttDrag;
+      document.removeEventListener("mousemove", onDragMove);
+      const item = byId(state.items, id);
+      if(item && preview){
+        item.planStart = toISODate(preview.newStart);
+        item.planEnd = toISODate(preview.newEnd);
+        item.updatedAt = nowISO();
+        save();
+        renderAll();
+      } else if(item){
+        item.planStart = toISODate(start);
+        item.planEnd = toISODate(end);
+        save();
+      }
+      ganttDrag = null;
+      ganttDragging = false;
     }
 
     function mName(m){
@@ -2427,6 +2782,7 @@
     ========================= */
     function renderAll(){
       ensureDefaults();
+      autoFillPeriodFromItems();
       // DK
       setDKMini();
 
@@ -2455,6 +2811,13 @@
       document.getElementById(id).addEventListener("change", ()=>renderAll());
     });
 
+    ["gMode","gShowCanceled","gScale"].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el){
+        el.addEventListener("change", ()=>renderAll());
+      }
+    });
+
     // DK fields
     document.getElementById("dkName").addEventListener("input", (e)=>{
       state.dk.name = e.target.value;
@@ -2463,12 +2826,16 @@
     });
     document.getElementById("dkPeriodStart").addEventListener("input", (e)=>{
       state.dk.periodStart = e.target.value;
+      state.dk.periodUserChanged = true;
+      periodTouched = true;
       if(!state.dk.year && e.target.value) state.dk.year = e.target.value.slice(0,4);
       save();
       renderAll();
     });
     document.getElementById("dkPeriodEnd").addEventListener("input", (e)=>{
       state.dk.periodEnd = e.target.value;
+      state.dk.periodUserChanged = true;
+      periodTouched = true;
       save();
       renderAll();
     });
