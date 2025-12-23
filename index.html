@@ -2005,6 +2005,9 @@
     let ganttDragFrame = null;
     const GANTT_DRAG_THRESHOLD = 3;
     const GANTT_TINY_HANDLE_WIDTH = 16;
+    const GANTT_HANDLE_WIDTH = 10;
+    const GANTT_DRAG_PADDING = 6;
+    const GANTT_MIN_DRAG_HIT_WIDTH = 24;
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -2358,6 +2361,29 @@
       return wrap;
     }
 
+    function setBarGeometry(bar, timeline, newStart, newEnd){
+      const newStartStr = toISODate(newStart);
+      const newEndStr = toISODate(newEnd);
+      const pos = positionFromDates(newStart, newEnd, timeline);
+      bar.style.left = `${pos.left}px`;
+      bar.style.width = `${pos.width}px`;
+      bar.dataset.start = newStartStr;
+      bar.dataset.end = newEndStr;
+      const label = bar.querySelector('.barLabel');
+      if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
+      const dragArea = bar.querySelector('.dragArea');
+      if(dragArea){
+        const availableWidth = Math.max(pos.width - GANTT_HANDLE_WIDTH*2, GANTT_MIN_DRAG_HIT_WIDTH);
+        const left = Math.max(GANTT_DRAG_PADDING, (pos.width - availableWidth)/2);
+        dragArea.style.top = `${GANTT_DRAG_PADDING}px`;
+        dragArea.style.bottom = `${GANTT_DRAG_PADDING}px`;
+        dragArea.style.left = `${left}px`;
+        dragArea.style.right = "auto";
+        dragArea.style.width = `${availableWidth}px`;
+      }
+      bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
+    }
+
     function buildBar(it, timeline, secColor){
       const {planStart: workingStart, planEnd: workingEnd} = workingDates(it);
       const planS = workingStart || "";
@@ -2389,43 +2415,35 @@
         ev.stopPropagation();
         const currentStart = parseISODate(bar.dataset.start || s) || start;
         const currentEnd = parseISODate(bar.dataset.end || e) || end;
-        const spanDays = Math.max(0, diffDays(currentStart, currentEnd));
         ganttUndoCheckpoint = clonePendingMap(ganttPending);
         ganttDragging = true;
         ganttJustDragged = false;
         ganttDrag = {
           id: it.id,
           type,
-          startX: ev.clientX,
-          start: currentStart,
-          end: currentEnd,
-          spanDays,
+          initialX: ev.clientX,
+          initialStart: currentStart,
+          initialEnd: currentEnd,
           snap,
           timeline,
           moved: false
         };
+        if(type === "move"){
+          ganttDrag.suppressClick = (evt)=>{
+            evt.preventDefault();
+            evt.stopPropagation();
+          };
+          document.addEventListener("click", ganttDrag.suppressClick, true);
+        }
         document.addEventListener("mousemove", onDragMove);
         document.addEventListener("mouseup", onDragEnd, {once:true});
-      }
-
-      function applyBarGeometry(newStart, newEnd){
-        const newStartStr = toISODate(newStart);
-        const newEndStr = toISODate(newEnd);
-        const pos = positionFromDates(newStart, newEnd, timeline);
-        bar.style.left = `${pos.left}px`;
-        bar.style.width = `${pos.width}px`;
-        bar.dataset.start = newStartStr;
-        bar.dataset.end = newEndStr;
-        const label = bar.querySelector('.barLabel');
-        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-        bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
       }
 
       bar.style.borderColor = secColor;
 
       bar.innerHTML = `<div class="handle left resizeHandle" data-side="start"></div><div class="handle right resizeHandle" data-side="end"></div><div class="dragArea" data-role="move"></div><span class="barLabel">${esc(s)} → ${esc(e)}</span>`;
 
-      applyBarGeometry(start, end);
+      setBarGeometry(bar, timeline, start, end);
 
       if(!ganttEditable){
         bar.classList.add("disabled");
@@ -2475,14 +2493,7 @@
       setPendingDates(id, newStartStr, newEndStr);
       const bar = document.querySelector(`.bar[data-id='${id}']`);
       if(bar){
-        const pos = positionFromDates(newStart, newEnd, timeline);
-        bar.style.left = `${pos.left}px`;
-        bar.style.width = `${pos.width}px`;
-        bar.dataset.start = newStartStr;
-        bar.dataset.end = newEndStr;
-        const label = bar.querySelector('.barLabel');
-        if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-        bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
+        setBarGeometry(bar, timeline, newStart, newEnd);
       }
       updateLeftDates(id, newStartStr, newEndStr);
       refreshGanttActions();
@@ -2498,29 +2509,27 @@
 
     function onDragMove(ev){
       if(!ganttDrag) return;
-      const {type, startX, start, end, snap, timeline, spanDays} = ganttDrag;
+      const {type, initialX, initialStart, initialEnd, snap, timeline} = ganttDrag;
       const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
       const pxPerDay = timeline.totalWidth / totalDays;
-      const deltaPx = ev.clientX - startX;
-      const deltaDays = deltaPx / pxPerDay;
+      const deltaPx = ev.clientX - initialX;
+      const deltaDays = Math.round((deltaPx / pxPerDay) / snap) * snap;
       if(!ganttDrag.moved && Math.abs(deltaPx) > GANTT_DRAG_THRESHOLD){
         ganttDrag.moved = true;
       }
-      let newStart = start;
-      let newEnd = end;
+      let newStart = initialStart;
+      let newEnd = initialEnd;
       if(type === "move"){
-        const snappedStart = snapDate(start, deltaDays, snap);
-        let shift = diffDays(start, snappedStart);
-        const minShift = diffDays(timeline.start, start);
-        const maxShift = diffDays(timeline.end, end);
-        shift = Math.min(Math.max(shift, minShift), maxShift);
-        newStart = addDays(start, shift);
-        newEnd = addDays(end, shift);
+        const minShift = -diffDays(timeline.start, initialStart);
+        const maxShift = diffDays(timeline.end, initialEnd);
+        const shift = Math.min(Math.max(deltaDays, minShift), maxShift);
+        newStart = addDays(initialStart, shift);
+        newEnd = addDays(initialEnd, shift);
       } else if(type === "start"){
-        newStart = snapDate(start, deltaDays, snap);
+        newStart = addDays(initialStart, deltaDays);
         if(newStart > newEnd) newStart = newEnd;
       } else if(type === "end"){
-        newEnd = snapDate(end, deltaDays, snap);
+        newEnd = addDays(initialEnd, deltaDays);
         if(newEnd < newStart) newEnd = newStart;
       }
       newStart = clampDate(newStart, timeline.start, timeline.end);
@@ -2532,8 +2541,11 @@
 
     function onDragEnd(){
       if(!ganttDrag) return;
-      const {id, preview} = ganttDrag;
+      const {id, preview, suppressClick} = ganttDrag;
       document.removeEventListener("mousemove", onDragMove);
+      if(suppressClick){
+        document.removeEventListener("click", suppressClick, true);
+      }
       if(ganttDragFrame){
         cancelAnimationFrame(ganttDragFrame);
         ganttDragFrame = null;
