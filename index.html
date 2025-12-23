@@ -496,6 +496,10 @@
       color:#7f1d1d;
     }
 
+    .disabledBlock{
+      opacity:0.45;
+    }
+
     .note{
       font-size:12px; color:var(--muted); line-height:1.35;
     }
@@ -515,17 +519,12 @@
         <span style="font-size:12px;color:var(--muted)">Поиск</span>
         <input id="globalSearch" placeholder="наименование / результат / примечание / ответственный" />
       </div>
-      <span class="pill"><span class="mono" id="stateBadge">state: ready</span></span>
     </div>
   </div>
 
   <div class="layout">
     <aside class="sidebar">
       <div class="sideBlock">
-        <h3>
-          <span>Параметры ДК</span>
-          <span class="pill" id="dkMini">—</span>
-        </h3>
         <div class="body">
           <div class="field">
             <label>Наименование дорожной карты</label>
@@ -573,13 +572,8 @@
           </div>
 
           <div class="field">
-            <label>Фильтр: ответственный</label>
-            <select id="fOwner"></select>
-          </div>
-
-          <div class="field">
-            <label>Фильтр: соисполнитель</label>
-            <select id="fCo"></select>
+            <label>Исполнитель</label>
+            <select id="fExec"></select>
           </div>
 
           <div class="btnRow">
@@ -623,18 +617,13 @@
               <thead>
                 <tr>
                   <th style="width:80px">№</th>
-                  <th style="width:260px">Заголовок тикета</th>
-                  <th style="width:170px">Раздел</th>
-                  <th style="width:120px">Статус</th>
+                  <th style="width:260px">Мероприятие</th>
                   <th style="width:130px">План: начало</th>
                   <th style="width:130px">План: конец</th>
                   <th style="width:170px">Ответственный</th>
                   <th style="width:220px">Соисполнители</th>
-                  <th style="width:160px">Финансирование, рублей</th>
-                  <th style="width:220px">Показатель</th>
-                  <th style="width:160px">План (значение)</th>
-                  <th style="width:120px">Отчеты</th>
-                  <th style="width:220px">Результат</th>
+                  <th style="width:220px">Целевой показатель</th>
+                  <th style="width:120px">Статус</th>
                   <th style="width:220px">Примечание</th>
                   <th style="width:120px">Действия</th>
                 </tr>
@@ -718,7 +707,7 @@
             <span id="mSub">—</span>
           </div>
         </div>
-        <button class="modalClose" id="mClose">Закрыть</button>
+        <button class="modalClose" id="mClose">❌</button>
       </div>
 
       <div class="modalBody">
@@ -782,7 +771,7 @@
           </h4>
           <div class="content">
             <div class="field">
-              <label>Заголовок тикета</label>
+              <label>Мероприятие</label>
               <input type="text" id="mName" placeholder="Наименование мероприятия" />
             </div>
 
@@ -805,6 +794,42 @@
                 <div class="line" style="display:block">
                   <div class="k" style="margin-bottom:6px">Плановое значение</div>
                   <input type="text" id="mKpiPlan" placeholder="100" />
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Целевые значения по датам / периодам</label>
+              <div class="btnRow" style="margin-bottom:8px; justify-content:space-between; gap:8px">
+                <button class="btn small primary" type="button" id="kpiAddTarget">+ Целевое значение</button>
+                <button class="btn small" type="button" id="kpiToggleTargets" style="display:none">Свернуть</button>
+              </div>
+              <div id="kpiTargetsList" class="note"></div>
+              <div id="kpiTargetForm" style="margin-top:8px; display:none; border:1px solid var(--border); padding:10px; border-radius:10px; background:var(--panel2)">
+                <div class="field" style="margin-bottom:8px">
+                  <label>Период / дата планового значения</label>
+                  <input type="text" id="kpiTargetPeriod" placeholder="например: Q1 2025 / 2025-03-01" />
+                </div>
+                <div class="field" style="margin-bottom:8px">
+                  <label>Плановое значение</label>
+                  <input type="text" id="kpiTargetValue" placeholder="Число или описание" />
+                </div>
+                <div class="field" style="margin-bottom:8px">
+                  <label>Фактическое значение (с датой)</label>
+                  <div class="kv" style="grid-template-columns: 1fr 1fr; align-items:end">
+                    <div class="line" style="display:block">
+                      <div class="k" style="margin-bottom:6px">Дата факта</div>
+                      <input type="date" id="kpiTargetFactDate" />
+                    </div>
+                    <div class="line" style="display:block">
+                      <div class="k" style="margin-bottom:6px">Фактическое значение</div>
+                      <input type="text" id="kpiTargetFactValue" placeholder="Например: 80%" />
+                    </div>
+                  </div>
+                </div>
+                <div class="btnRow" style="justify-content:flex-end">
+                  <button class="btn" type="button" id="kpiTargetCancel">Отмена</button>
+                  <button class="btn primary small" type="button" id="kpiTargetSave">Сохранить</button>
                 </div>
               </div>
             </div>
@@ -839,12 +864,12 @@
                 </div>
               </div>
 
-              <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px">
+              <div id="finalReportBlock" style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px">
                 <div class="btnRow" style="margin-bottom:8px; justify-content:space-between; gap:8px">
                   <div style="font-weight:700">Итоговый отчет</div>
                   <div class="btnRow">
                     <button class="btn small primary" type="button" id="finalReportEdit">Создать / редактировать</button>
-                    <button class="btn small danger" type="button" id="finalReportDelete">Удалить</button>
+                    <button class="btn small danger" type="button" id="finalReportDelete">🗑</button>
                   </div>
                 </div>
                 <div id="finalReportView" class="note">—</div>
@@ -879,11 +904,11 @@
 
       <div class="modalFooter">
         <div class="btnRow">
-          <button class="btn primary" id="mSave">Сохранить</button>
-          <button class="btn" id="mCancel">Отмена</button>
+          <button class="btn danger" id="mDelete">🗑</button>
         </div>
-        <div class="btnRow">
-          <button class="btn danger" id="mDelete">Удалить</button>
+        <div class="btnRow" style="margin-left:auto">
+          <button class="btn" id="mCancel">Отмена</button>
+          <button class="btn primary" id="mSave">Сохранить</button>
         </div>
       </div>
     </div>
@@ -899,7 +924,7 @@
             <span id="secStatsSub">—</span>
           </div>
         </div>
-        <button class="modalClose" id="secStatsClose">Закрыть</button>
+        <button class="modalClose" id="secStatsClose">❌</button>
       </div>
       <div class="modalBody" style="grid-template-columns: 1fr">
         <div class="modalMain">
@@ -929,7 +954,7 @@
       </div>
       <div class="modalFooter">
         <div class="btnRow">
-          <button class="btn" id="secStatsClose2">Закрыть</button>
+          <button class="btn" id="secStatsClose2">❌</button>
         </div>
       </div>
     </div>
@@ -945,7 +970,7 @@
             <span id="secEditSub">—</span>
           </div>
         </div>
-        <button class="modalClose" id="secEditClose">Закрыть</button>
+        <button class="modalClose" id="secEditClose">❌</button>
       </div>
       <div class="modalBody" style="grid-template-columns:1fr">
         <div class="modalMain">
@@ -973,11 +998,11 @@
       </div>
       <div class="modalFooter">
         <div class="btnRow">
-          <button class="btn primary" id="secEditSave">Сохранить</button>
-          <button class="btn" id="secEditCancel">Отмена</button>
+          <button class="btn danger" id="secEditDelete">🗑 Раздел</button>
         </div>
-        <div class="btnRow">
-          <button class="btn danger" id="secEditDelete">Удалить раздел</button>
+        <div class="btnRow" style="margin-left:auto">
+          <button class="btn" id="secEditCancel">Отмена</button>
+          <button class="btn primary" id="secEditSave">Сохранить</button>
         </div>
       </div>
     </div>
@@ -1010,14 +1035,8 @@
       const d = new Date();
       return d.toISOString().slice(0,19).replace("T"," ");
     }
-    function badge(t){
-      const el = document.getElementById("stateBadge");
-      el.textContent = t;
-      setTimeout(()=>el.textContent="state: ready", 900);
-    }
     function save(){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      badge("state: saved");
     }
     function load(){
       try{
@@ -1128,6 +1147,16 @@
         text: rep.text || ""
       };
     }
+    function normalizeKpiTarget(t){
+      if(!t) return {id: uid("kpit"), period:"", value:"", factDate:"", factValue:""};
+      return {
+        id: t.id || uid("kpit"),
+        period: t.period || "",
+        value: t.value || "",
+        factDate: t.factDate || "",
+        factValue: t.factValue || ""
+      };
+    }
     function ensureDefaults(){
       state.dk = state.dk || {};
       state.dk.periodStart = state.dk.periodStart || "";
@@ -1151,7 +1180,12 @@
         it.reports = Array.isArray(it.reports) ? it.reports.map(normalizeReport) : [];
         it.finalReport = it.finalReport ? normalizeReport(it.finalReport) : null;
         it.kpi = it.kpi || {name:"", unit:"", plan:""};
+        it.kpiTargets = Array.isArray(it.kpiTargets) ? it.kpiTargets.map(normalizeKpiTarget) : [];
       });
+      const starts = state.items.map(it=>it.planStart).filter(Boolean).sort();
+      const ends = state.items.map(it=>it.planEnd).filter(Boolean).sort();
+      if(!state.dk.periodStart && starts.length) state.dk.periodStart = starts[0];
+      if(!state.dk.periodEnd && ends.length) state.dk.periodEnd = ends[ends.length-1];
     }
     ensureDefaults();
 
@@ -1162,8 +1196,11 @@
     let editingId = null;
     let dragId = null;
     let currentReports = [];
+    let currentKpiTargets = [];
     let currentFinalReport = null;
     let editingReportId = null;
+    let editingKpiTargetId = null;
+    let kpiTargetsCollapsed = false;
     let editingSectionId = null;
 
     /* =========================
@@ -1198,6 +1235,18 @@
       while(used.has(`${secNum}.${n}`)) n++;
       return `${secNum}.${n}`;
     }
+    function refreshItemNumbers(){
+      sortedSections().forEach(sec=>{
+        const prefix = sec.number || String(sec.order||"1");
+        const inSec = state.items.filter(it=>it.sectionId===sec.id);
+        inSec.forEach((it, idx)=>{
+          const parts = (it.number||"").split(".");
+          const suffix = parts.length>1 ? parts.slice(1).join(".") : String(idx+1);
+          const safeSuffix = suffix || String(idx+1);
+          it.number = `${prefix}.${safeSuffix}`;
+        });
+      });
+    }
     function reportSummary(it){
       const cnt = (it.reports||[]).length;
       const hasFinal = !!it.finalReport;
@@ -1216,6 +1265,14 @@
       const unit = k.unit ? ` ${k.unit}` : "";
       return `${val}${unit}`;
     }
+    function kpiDisplay(it){
+      const k = it.kpi || {};
+      if(!k.name && !k.plan && !k.unit) return "—";
+      const parts = [];
+      if(k.name) parts.push(k.name);
+      if(k.plan) parts.push(`план: ${k.plan}${k.unit ? " " + k.unit : ""}`);
+      return parts.join(" / ") || "—";
+    }
     function sortedSections(){
       return [...state.sections].sort((a,b)=>(a.order||0)-(b.order||0) || (a.name||"").localeCompare(b.name||""));
     }
@@ -1230,27 +1287,24 @@
     function filterSection(){
       return document.getElementById("fSection").value;
     }
-    function filterOwner(){
-      return document.getElementById("fOwner").value.trim();
-    }
-    function filterCo(){
-      return document.getElementById("fCo").value.trim();
+    function filterExec(){
+      return document.getElementById("fExec").value.trim();
     }
 
     function filteredItems(){
       const q = globalQuery();
       const fs = filterStatus();
       const fsec = filterSection();
-      const fo = filterOwner();
-      const fco = filterCo();
+      const fexec = filterExec();
 
       return state.items.filter(it=>{
         if(fs && it.status !== fs) return false;
         if(fsec && it.sectionId !== fsec) return false;
-        if(fo && (it.owner||"") !== fo) return false;
-        if(fco){
+        if(fexec){
           const coList = (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean);
-          if(!coList.includes(fco)) return false;
+          const ownerMatch = ((it.owner||"").trim()) === fexec;
+          const coMatch = coList.includes(fexec);
+          if(!ownerMatch && !coMatch) return false;
         }
 
         if(q){
@@ -1263,7 +1317,8 @@
 
     function setDKMini(){
       const mini = `${state.dk.periodStart||"—"} → ${state.dk.periodEnd||"—"}`;
-      document.getElementById("dkMini").textContent = mini;
+      const dkMini = document.getElementById("dkMini");
+      if(dkMini) dkMini.textContent = mini;
       document.getElementById("dkName").value = state.dk.name || "";
       document.getElementById("dkPeriodStart").value = state.dk.periodStart || "";
       document.getElementById("dkPeriodEnd").value = state.dk.periodEnd || "";
@@ -1303,29 +1358,20 @@
       });
       if([...ms.options].some(o=>o.value===currM)) ms.value = currM;
 
-      const owners = uniqueList(state.items.map(it=> (it.owner||"").trim()).filter(Boolean));
-      const fOwner = document.getElementById("fOwner");
-      const fOwnerCurr = fOwner.value;
-      fOwner.innerHTML = "<option value=''>Все</option>";
-      owners.forEach(o=>{
+      const execs = uniqueList([
+        ...state.items.map(it=> (it.owner||"").trim()),
+        ...state.items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()))
+      ].filter(Boolean));
+      const fExec = document.getElementById("fExec");
+      const fExecCurr = fExec.value;
+      fExec.innerHTML = "<option value=''>Все</option>";
+      execs.forEach(o=>{
         const opt = document.createElement("option");
         opt.value = o;
         opt.textContent = o;
-        fOwner.appendChild(opt);
+        fExec.appendChild(opt);
       });
-      if([...fOwner.options].some(o=>o.value===fOwnerCurr)) fOwner.value = fOwnerCurr;
-
-      const coExecs = uniqueList(state.items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)));
-      const fCo = document.getElementById("fCo");
-      const fCoCurr = fCo.value;
-      fCo.innerHTML = "<option value=''>Все</option>";
-      coExecs.forEach(o=>{
-        const opt = document.createElement("option");
-        opt.value = o;
-        opt.textContent = o;
-        fCo.appendChild(opt);
-      });
-      if([...fCo.options].some(o=>o.value===fCoCurr)) fCo.value = fCoCurr;
+      if([...fExec.options].some(o=>o.value===fExecCurr)) fExec.value = fExecCurr;
     }
 
     function renderKPI(){
@@ -1369,14 +1415,17 @@
 
         const trS = document.createElement("tr");
         trS.className = "sectionRow";
-        trS.innerHTML = `<td colspan="15">
+        trS.innerHTML = `<td colspan="10">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-            <div>${esc(sectionDisplayName(sec))} <span style="color:var(--muted);font-weight:700">(${inSecAll.length})</span></div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="btn small" type="button" data-action="add">➕</button>
+              <div>${esc(sectionDisplayName(sec))}</div>
+            </div>
             <div class="rowActions">
-              <button class="btn small" type="button" data-action="toggle">${collapsed?"Развернуть":"Свернуть"}</button>
-              <button class="btn small" type="button" data-action="edit">Редактировать</button>
-              <button class="btn small danger" type="button" data-action="delete">Удалить</button>
               <button class="btn small" type="button" data-action="stats">Статистика</button>
+              <button class="btn small" type="button" data-action="edit">✏</button>
+              <button class="btn small danger" type="button" data-action="delete">🗑</button>
+              <button class="btn small" type="button" data-action="toggle">${collapsed?"Развернуть":"Свернуть"}</button>
             </div>
           </div>
         </td>`;
@@ -1390,6 +1439,8 @@
               state.collapsedSections[sec.id] = !collapsed;
               save();
               renderAll();
+            } else if(act==="add"){
+              openModal(null, {sectionId: sec.id});
             } else if(act==="edit"){
               openSectionEdit(sec);
             } else if(act==="delete"){
@@ -1419,17 +1470,12 @@
             tr.innerHTML = `
               <td>${esc(it.number||"—")}</td>
               <td><b>${esc(it.name||"—")}</b></td>
-              <td>${esc(sectionDisplayName(sec))}</td>
-              <td>${esc(Status[it.status]?.label || it.status)}</td>
               <td>${esc(it.planStart||"—")}</td>
               <td>${esc(it.planEnd||"—")}</td>
               <td>${esc(it.owner||"—")}</td>
               <td>${esc(it.co||"—")}</td>
-              <td>${esc(it.money||"—")}</td>
-              <td>${esc(kpiName(it))}</td>
-              <td>${esc(kpiPlan(it))}</td>
-              <td>${esc(reportSummary(it))}</td>
-              <td>${esc(it.result||"—")}</td>
+              <td>${esc(kpiDisplay(it))}</td>
+              <td>${esc(Status[it.status]?.label || it.status)}</td>
               <td>${esc(it.note||"—")}</td>
               <td>
                 <div class="rowActions">
@@ -1479,14 +1525,32 @@
     }
 
     function normalizeSectionOrders(){
-      sortedSections().forEach((s,i)=>{ s.order = i+1; });
+      sortedSections().forEach((s,i)=>{ s.order = i+1; s.number = String(i+1); });
+      refreshItemNumbers();
     }
 
     function openSectionEdit(sec){
       editingSectionId = sec.id;
+      document.getElementById("secEditTitle").textContent = "Редактирование раздела";
       document.getElementById("secEditSub").textContent = sectionDisplayName(sec);
       document.getElementById("secEditNumber").value = sec.number || "";
       document.getElementById("secEditName").value = sec.name || "";
+      document.getElementById("secEditDelete").style.display = "inline-flex";
+      document.getElementById("secMoveUp").disabled = false;
+      document.getElementById("secMoveDown").disabled = false;
+      document.getElementById("sectionEditModal").classList.add("active");
+    }
+
+    function openSectionCreate(){
+      editingSectionId = null;
+      const nextOrder = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
+      document.getElementById("secEditTitle").textContent = "Создание раздела";
+      document.getElementById("secEditSub").textContent = "Новый раздел";
+      document.getElementById("secEditNumber").value = String(nextOrder);
+      document.getElementById("secEditName").value = "";
+      document.getElementById("secEditDelete").style.display = "none";
+      document.getElementById("secMoveUp").disabled = true;
+      document.getElementById("secMoveDown").disabled = true;
       document.getElementById("sectionEditModal").classList.add("active");
     }
 
@@ -1496,12 +1560,18 @@
     }
 
     function saveSectionEdit(){
-      const sec = byId(state.sections, editingSectionId);
-      if(!sec) return;
       const newName = document.getElementById("secEditName").value.trim();
       const newNumber = document.getElementById("secEditNumber").value.trim();
-      if(newName) sec.name = newName;
-      sec.number = newNumber || sec.number || String(sortedSections().findIndex(s=>s.id===sec.id)+1);
+      if(!newName) return;
+      if(editingSectionId){
+        const sec = byId(state.sections, editingSectionId);
+        if(!sec) return;
+        sec.name = newName;
+        sec.number = newNumber || sec.number || String(sortedSections().findIndex(s=>s.id===sec.id)+1);
+      } else {
+        const order = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
+        state.sections.push({id: uid("sec"), name:newName, number: newNumber || String(order), order, createdAt: nowISO()});
+      }
       normalizeSectionOrders();
       save();
       renderAll();
@@ -1820,8 +1890,8 @@
           <div style="font-size:12px">${esc(rep.text||"")}</div>
         </div>
         <div class="btnRow">
-          <button class="btn small" type="button" data-action="edit">Редактировать</button>
-          <button class="btn small danger" type="button" data-action="delete">Удалить</button>
+              <button class="btn small" type="button" data-action="edit">✏</button>
+          <button class="btn small danger" type="button" data-action="delete">🗑</button>
         </div>`;
         row.querySelector('[data-action="edit"]').addEventListener("click", ()=>{
           editingReportId = rep.id;
@@ -1860,15 +1930,115 @@
       renderReportsUI();
     }
 
+    function resetKpiTargetForm(){
+      editingKpiTargetId = null;
+      document.getElementById("kpiTargetPeriod").value = "";
+      document.getElementById("kpiTargetValue").value = "";
+      document.getElementById("kpiTargetFactDate").value = "";
+      document.getElementById("kpiTargetFactValue").value = "";
+    }
+    function hideKpiTargetForm(){
+      document.getElementById("kpiTargetForm").style.display = "none";
+      resetKpiTargetForm();
+    }
+    function renderKpiTargetsUI(){
+      const box = document.getElementById("kpiTargetsList");
+      const toggle = document.getElementById("kpiToggleTargets");
+      toggle.style.display = currentKpiTargets.length > 1 ? "inline-flex" : "none";
+      toggle.textContent = kpiTargetsCollapsed ? "Развернуть" : "Свернуть";
+      if(!currentKpiTargets.length){
+        box.textContent = "Целевые значения не добавлены";
+        return;
+      }
+      if(kpiTargetsCollapsed){
+        box.textContent = `Записей: ${currentKpiTargets.length}`;
+        return;
+      }
+      box.innerHTML = "";
+      const sorted = [...currentKpiTargets].sort((a,b)=> (a.period||"").localeCompare(b.period||"") || (a.factDate||"").localeCompare(b.factDate||""));
+      sorted.forEach(t=>{
+        const row = document.createElement("div");
+        row.style.display = "grid";
+        row.style.gridTemplateColumns = "1fr auto";
+        row.style.gap = "8px";
+        row.style.alignItems = "center";
+        row.style.padding = "6px 0";
+        row.style.borderBottom = "1px solid var(--border)";
+        row.innerHTML = `<div>
+          <div style="font-weight:700">${esc(t.period||"Без периода")}</div>
+          <div style="font-size:12px">План: ${esc(t.value||"—")}</div>
+          <div style="color:var(--muted); font-size:12px">Факт на ${esc(t.factDate||"—")}: ${esc(t.factValue||"—")}</div>
+        </div>
+        <div class="btnRow">
+          <button class="btn small" type="button" data-action="edit">✏</button>
+          <button class="btn small danger" type="button" data-action="delete">🗑</button>
+        </div>`;
+        row.querySelector('[data-action="edit"]').addEventListener("click", ()=>{
+          editingKpiTargetId = t.id;
+          document.getElementById("kpiTargetPeriod").value = t.period || "";
+          document.getElementById("kpiTargetValue").value = t.value || "";
+          document.getElementById("kpiTargetFactDate").value = t.factDate || "";
+          document.getElementById("kpiTargetFactValue").value = t.factValue || "";
+          document.getElementById("kpiTargetForm").style.display = "block";
+        });
+        row.querySelector('[data-action="delete"]').addEventListener("click", ()=>{
+          currentKpiTargets = currentKpiTargets.filter(x=>x.id!==t.id);
+          renderKpiTargetsUI();
+        });
+        box.appendChild(row);
+      });
+    }
+    function saveKpiTarget(){
+      const t = normalizeKpiTarget({
+        id: editingKpiTargetId,
+        period: document.getElementById("kpiTargetPeriod").value.trim(),
+        value: document.getElementById("kpiTargetValue").value.trim(),
+        factDate: document.getElementById("kpiTargetFactDate").value,
+        factValue: document.getElementById("kpiTargetFactValue").value.trim(),
+      });
+      if(editingKpiTargetId){
+        const idx = currentKpiTargets.findIndex(x=>x.id===editingKpiTargetId);
+        if(idx>=0) currentKpiTargets[idx] = t;
+      }else{
+        currentKpiTargets.push(t);
+      }
+      hideKpiTargetForm();
+      renderKpiTargetsUI();
+    }
+
     function renderFinalReportView(){
       const view = document.getElementById("finalReportView");
       if(!currentFinalReport){
         view.textContent = "Итоговый отчет не заполнен";
       } else {
-        view.innerHTML = `<div style="font-weight:700">${esc(currentFinalReport.period||currentFinalReport.date||"Итоговый отчет")}</div>
-          <div style="color:var(--muted); font-size:12px">${esc(currentFinalReport.date||"Без даты")}</div>
-          <div style="font-size:12px">${esc(currentFinalReport.text||"")}</div>`;
+        view.innerHTML = [
+          `<div style="font-weight:700">${esc(currentFinalReport.period||currentFinalReport.date||"Итоговый отчет")}</div>`,
+          `<div style="color:var(--muted); font-size:12px">${esc(currentFinalReport.date||"Без даты")}</div>`,
+          `<div style="font-size:12px">${esc(currentFinalReport.text||"")}</div>`
+        ].join("");
       }
+    }
+
+    function planEnded(it){
+      if(!it || !it.planEnd) return false;
+      const endDate = new Date(it.planEnd);
+      const today = new Date();
+      endDate.setHours(0,0,0,0);
+      today.setHours(0,0,0,0);
+      return endDate < today;
+    }
+    function updateFinalReportAvailability(current){
+      const block = document.getElementById("finalReportBlock");
+      const allowed = planEnded(current);
+      if(block){
+        block.classList.toggle("disabledBlock", !allowed);
+        block.title = allowed ? "" : "Дата окончания мероприятия ещё не наступила";
+      }
+      ["finalReportEdit","finalReportDelete","finalSave"].forEach(id=>{
+        const btn = document.getElementById(id);
+        if(btn) btn.disabled = !allowed;
+      });
+      if(!allowed) closeFinalForm();
     }
 
     function openFinalForm(){
@@ -1899,14 +2069,14 @@
       closeFinalForm();
     }
 
-    function openModal(id){
+    function openModal(id, opts={}){
       renderFilters(); // ensure section list up-to-date
       const isNew = !id;
       let it = isNew ? null : byId(state.items, id);
       if(!it && !isNew) return;
 
       if(isNew){
-        const secId = sortedSections()[0]?.id || null;
+        const secId = opts.sectionId || sortedSections()[0]?.id || null;
         it = {
           id: uid("it"),
           name:"",
@@ -1960,11 +2130,17 @@
       document.getElementById("mUpdated").textContent = current.updatedAt || "—";
 
       currentReports = (current.reports||[]).map(r=>({...r}));
+      currentKpiTargets = (current.kpiTargets||[]).map(t=>({...t}));
       currentFinalReport = current.finalReport ? {...current.finalReport} : null;
       hideReportForm();
       closeFinalForm();
       renderReportsUI();
+      hideKpiTargetForm();
+      kpiTargetsCollapsed = false;
+      renderKpiTargetsUI();
       renderFinalReportView();
+
+      updateFinalReportAvailability(current);
 
       // Delete button disabled for new unsaved
       document.getElementById("mDelete").disabled = !!tempNewItem;
@@ -1977,8 +2153,11 @@
       editingId = null;
       tempNewItem = null;
       currentReports = [];
+      currentKpiTargets = [];
       currentFinalReport = null;
       editingReportId = null;
+      editingKpiTargetId = null;
+      kpiTargetsCollapsed = false;
     }
 
     let tempNewItem = null;
@@ -2002,6 +2181,7 @@
           plan: document.getElementById("mKpiPlan").value.trim(),
         },
         reports: currentReports.map(r=>({...r})),
+        kpiTargets: currentKpiTargets.map(t=>({...t})),
         finalReport: currentFinalReport ? {...currentFinalReport} : null,
       };
     }
@@ -2016,7 +2196,7 @@
           tempNewItem.number = autoNumberForItem(tempNewItem.sectionId);
         }
         if(!tempNewItem.name){
-          alert("Заполните «Заголовок тикета».");
+          alert("Заполните «Мероприятие».");
           return;
         }
         if(!tempNewItem.sectionId){
@@ -2034,7 +2214,7 @@
         }
         it.updatedAt = nowISO();
         if(!it.name){
-          alert("Заполните «Заголовок тикета».");
+          alert("Заполните «Мероприятие».");
           return;
         }
       }
@@ -2124,7 +2304,7 @@
     document.getElementById("globalSearch").addEventListener("input", ()=>renderAll());
 
     // Filters
-    ["fStatus","fSection","fOwner","fCo"].forEach(id=>{
+    ["fStatus","fSection","fExec"].forEach(id=>{
       document.getElementById(id).addEventListener("input", ()=>renderAll());
       document.getElementById(id).addEventListener("change", ()=>renderAll());
     });
@@ -2164,12 +2344,7 @@
 
     // Add section
     document.getElementById("btnAddSection").addEventListener("click", ()=>{
-      const name = prompt("Наименование раздела:", "Новый раздел");
-      if(!name) return;
-      const order = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
-      state.sections.push({id: uid("sec"), name: name.trim(), number:String(order), order, createdAt: nowISO()});
-      save();
-      renderAll();
+      openSectionCreate();
     });
 
     // Add item (sidebar) -> open modal NEW
@@ -2214,27 +2389,29 @@
     document.getElementById("mCancel").addEventListener("click", closeModal);
     document.getElementById("mSave").addEventListener("click", saveModal);
     document.getElementById("mDelete").addEventListener("click", deleteModal);
-    document.getElementById("modal").addEventListener("click", (e)=>{
-      if(e.target.id === "modal") closeModal();
-    });
+    document.getElementById("mPlanEnd").addEventListener("input", ()=>updateFinalReportAvailability(collectModal()));
     document.getElementById("addReportBtn").addEventListener("click", ()=>{
       resetReportForm();
       document.getElementById("reportForm").style.display = "block";
     });
     document.getElementById("reportSave").addEventListener("click", saveReportForm);
     document.getElementById("reportCancel").addEventListener("click", hideReportForm);
+    document.getElementById("kpiAddTarget").addEventListener("click", ()=>{
+      resetKpiTargetForm();
+      document.getElementById("kpiTargetForm").style.display = "block";
+    });
+    document.getElementById("kpiTargetSave").addEventListener("click", saveKpiTarget);
+    document.getElementById("kpiTargetCancel").addEventListener("click", hideKpiTargetForm);
+    document.getElementById("kpiToggleTargets").addEventListener("click", ()=>{
+      kpiTargetsCollapsed = !kpiTargetsCollapsed;
+      renderKpiTargetsUI();
+    });
     document.getElementById("finalReportEdit").addEventListener("click", openFinalForm);
     document.getElementById("finalReportDelete").addEventListener("click", deleteFinalReport);
     document.getElementById("finalSave").addEventListener("click", saveFinalReport);
     document.getElementById("finalCancel").addEventListener("click", closeFinalForm);
-    document.getElementById("sectionStatsModal").addEventListener("click", (e)=>{
-      if(e.target.id === "sectionStatsModal") closeSectionStats();
-    });
     ["secStatsClose","secStatsClose2"].forEach(id=>{
       document.getElementById(id).addEventListener("click", closeSectionStats);
-    });
-    document.getElementById("sectionEditModal").addEventListener("click", (e)=>{
-      if(e.target.id === "sectionEditModal") closeSectionEdit();
     });
     document.getElementById("secEditClose").addEventListener("click", closeSectionEdit);
     document.getElementById("secEditCancel").addEventListener("click", closeSectionEdit);
