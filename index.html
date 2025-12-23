@@ -547,6 +547,16 @@
           </div>
 
           <div class="field">
+            <label>Чем утверждена ДК</label>
+            <input type="text" id="dkApprovedBy" placeholder="Например: Постановление ..." />
+          </div>
+
+          <div class="field">
+            <label>Номер / дата документа</label>
+            <input type="text" id="dkApprovedDoc" placeholder="№ и дата документа" />
+          </div>
+
+          <div class="field">
             <label>Фильтр: статус</label>
             <select id="fStatus">
               <option value="">Все</option>
@@ -620,8 +630,11 @@
                   <th style="width:130px">План: конец</th>
                   <th style="width:170px">Ответственный</th>
                   <th style="width:220px">Соисполнители</th>
-                  <th style="width:160px">Финансирование</th>
-                  <th style="width:260px">Результат</th>
+                  <th style="width:160px">Финансирование, рублей</th>
+                  <th style="width:220px">Показатель</th>
+                  <th style="width:160px">План (значение)</th>
+                  <th style="width:120px">Отчеты</th>
+                  <th style="width:220px">Результат</th>
                   <th style="width:220px">Примечание</th>
                   <th style="width:120px">Действия</th>
                 </tr>
@@ -751,7 +764,7 @@
             </div>
 
             <div class="field">
-              <label>Финансирование</label>
+              <label>Финансирование, рублей</label>
               <input type="text" id="mMoney" placeholder="например: 10 000 000" />
             </div>
 
@@ -779,8 +792,81 @@
             </div>
 
             <div class="field">
+              <label>Целевой показатель</label>
+              <div class="kv" style="grid-template-columns: 1fr 1fr 1fr">
+                <div class="line" style="display:block">
+                  <div class="k" style="margin-bottom:6px">Наименование</div>
+                  <input type="text" id="mKpiName" placeholder="Например: количество услуг" />
+                </div>
+                <div class="line" style="display:block">
+                  <div class="k" style="margin-bottom:6px">Ед. измерения</div>
+                  <input type="text" id="mKpiUnit" placeholder="шт. / % / ед." />
+                </div>
+                <div class="line" style="display:block">
+                  <div class="k" style="margin-bottom:6px">Плановое значение</div>
+                  <input type="text" id="mKpiPlan" placeholder="100" />
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
               <label>Примечание</label>
               <textarea id="mNote" placeholder="Доп. условия / риски / ссылки"></textarea>
+            </div>
+
+            <div class="field">
+              <label>Отчеты</label>
+              <div class="btnRow" style="margin-bottom:8px">
+                <button class="btn small primary" type="button" id="addReportBtn">+ Добавить промежуточный отчет</button>
+              </div>
+              <div id="reportsList" class="note"></div>
+              <div id="reportForm" style="margin-top:10px; display:none; border:1px solid var(--border); padding:10px; border-radius:10px; background:var(--panel2)">
+                <div class="field" style="margin-bottom:8px">
+                  <label>Дата внесения отчета</label>
+                  <input type="date" id="reportDate" />
+                </div>
+                <div class="field" style="margin-bottom:8px">
+                  <label>Период отчета</label>
+                  <input type="text" id="reportPeriod" placeholder="например: 1 полугодие 2024" />
+                </div>
+                <div class="field" style="margin-bottom:8px">
+                  <label>Комментарий / факт выполнения</label>
+                  <textarea id="reportText" placeholder="Краткое содержание"></textarea>
+                </div>
+                <div class="btnRow">
+                  <button class="btn primary small" type="button" id="reportSave">Сохранить отчет</button>
+                  <button class="btn small" type="button" id="reportCancel">Отмена</button>
+                </div>
+              </div>
+
+              <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px">
+                <div class="btnRow" style="margin-bottom:8px; justify-content:space-between; gap:8px">
+                  <div style="font-weight:700">Итоговый отчет</div>
+                  <div class="btnRow">
+                    <button class="btn small primary" type="button" id="finalReportEdit">Создать / редактировать</button>
+                    <button class="btn small danger" type="button" id="finalReportDelete">Удалить</button>
+                  </div>
+                </div>
+                <div id="finalReportView" class="note">—</div>
+                <div id="finalReportForm" style="margin-top:8px; display:none; border:1px solid var(--border); padding:10px; border-radius:10px; background:var(--panel2)">
+                  <div class="field" style="margin-bottom:8px">
+                    <label>Дата внесения отчета</label>
+                    <input type="date" id="finalDate" />
+                  </div>
+                  <div class="field" style="margin-bottom:8px">
+                    <label>Период отчета</label>
+                    <input type="text" id="finalPeriod" placeholder="Q3 2025 / 2024" />
+                  </div>
+                  <div class="field" style="margin-bottom:8px">
+                    <label>Комментарий / факт выполнения</label>
+                    <textarea id="finalText" placeholder="Ключевые результаты"></textarea>
+                  </div>
+                  <div class="btnRow">
+                    <button class="btn primary small" type="button" id="finalSave">Сохранить итоговый отчет</button>
+                    <button class="btn small" type="button" id="finalCancel">Отмена</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="kv">
@@ -830,14 +916,13 @@
               <div class="line"><div class="k">Отменено</div><div class="v" id="secStatsCanceled">—</div></div>
               <div class="line"><div class="k">Дата начала раздела</div><div class="v" id="secStatsStart">—</div></div>
               <div class="line"><div class="k">Дата окончания раздела</div><div class="v" id="secStatsEnd">—</div></div>
-              <div class="line"><div class="k">Финансирование</div><div class="v" id="secStatsMoney">—</div></div>
+              <div class="line"><div class="k">Финансирование, рублей</div><div class="v" id="secStatsMoney">—</div></div>
             </div>
 
             <div style="height:10px"></div>
 
             <div class="kv">
-              <div class="line"><div class="k">Ответственные</div><div class="v" id="secStatsOwners" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
-              <div class="line"><div class="k">Соисполнители</div><div class="v" id="secStatsCo" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
+              <div class="line"><div class="k">Исполнители</div><div class="v" id="secStatsExecs" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
             </div>
           </div>
         </div>
@@ -845,6 +930,54 @@
       <div class="modalFooter">
         <div class="btnRow">
           <button class="btn" id="secStatsClose2">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="sectionEditModal">
+    <div class="modalPanel" style="max-width:520px">
+      <div class="modalHead">
+        <div class="modalHeadLeft">
+          <div class="modalIcon">⚙</div>
+          <div class="modalTitle">
+            <strong id="secEditTitle">Редактирование раздела</strong>
+            <span id="secEditSub">—</span>
+          </div>
+        </div>
+        <button class="modalClose" id="secEditClose">Закрыть</button>
+      </div>
+      <div class="modalBody" style="grid-template-columns:1fr">
+        <div class="modalMain">
+          <h4>
+            <span>Параметры раздела</span>
+          </h4>
+          <div class="content">
+            <div class="field">
+              <label>Номер / код раздела</label>
+              <input type="text" id="secEditNumber" />
+            </div>
+            <div class="field">
+              <label>Наименование раздела</label>
+              <input type="text" id="secEditName" />
+            </div>
+            <div class="field">
+              <label>Перемещение</label>
+              <div class="btnRow">
+                <button class="btn small" type="button" id="secMoveUp">↑ Вверх</button>
+                <button class="btn small" type="button" id="secMoveDown">↓ Вниз</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modalFooter">
+        <div class="btnRow">
+          <button class="btn primary" id="secEditSave">Сохранить</button>
+          <button class="btn" id="secEditCancel">Отмена</button>
+        </div>
+        <div class="btnRow">
+          <button class="btn danger" id="secEditDelete">Удалить раздел</button>
         </div>
       </div>
     </div>
@@ -899,10 +1032,10 @@
     function demo(){
       const sec1 = uid("sec"), sec2 = uid("sec");
       return {
-        dk: { name:"Дорожная карта (пример)", year:String(new Date().getFullYear()), periodStart: dateOf(1), periodEnd: dateOf(12), owner:"Минтруд" },
+        dk: { name:"Дорожная карта (пример)", year:String(new Date().getFullYear()), periodStart: dateOf(1), periodEnd: dateOf(12), owner:"Минтруд", approvedBy:"Постановление Правительства", approvedDoc:"№123 от 01.01." },
         sections: [
-          {id: sec1, name:"1. Организация", order:1, createdAt: nowISO()},
-          {id: sec2, name:"2. Реализация", order:2, createdAt: nowISO()},
+          {id: sec1, name:"Организация", number:"1", order:1, createdAt: nowISO()},
+          {id: sec2, name:"Реализация", number:"2", order:2, createdAt: nowISO()},
         ],
         items: [
           {
@@ -918,6 +1051,9 @@
             money:"0",
             result:"Проект НПА подготовлен и согласован",
             note:"Согласование в 3 подразделениях",
+            reports:[{id:uid("rep"), date:dateOf(2), period:"январь", text:"Подготовлен проект"}],
+            finalReport:null,
+            kpi:{name:"Подготовка документа", unit:"шт.", plan:"1"},
             createdAt: nowISO(),
             updatedAt: nowISO()
           },
@@ -934,6 +1070,9 @@
             money:"—",
             result:"Реестр мероприятий утверждён",
             note:"",
+            reports:[],
+            finalReport:null,
+            kpi:{name:"Реестр", unit:"шт.", plan:"1"},
             createdAt: nowISO(),
             updatedAt: nowISO()
           },
@@ -980,13 +1119,39 @@
     }
 
     let state = load() || demo();
+    function normalizeReport(rep){
+      if(!rep) return null;
+      return {
+        id: rep.id || uid("rep"),
+        date: rep.date || "",
+        period: rep.period || "",
+        text: rep.text || ""
+      };
+    }
     function ensureDefaults(){
       state.dk = state.dk || {};
       state.dk.periodStart = state.dk.periodStart || "";
       state.dk.periodEnd = state.dk.periodEnd || "";
       state.dk.owner = state.dk.owner || "";
+      state.dk.approvedBy = state.dk.approvedBy || "";
+      state.dk.approvedDoc = state.dk.approvedDoc || "";
       state.dk.year = state.dk.year || (state.dk.periodStart ? state.dk.periodStart.slice(0,4) : String(new Date().getFullYear()));
+      state.sections = state.sections || [];
+      state.items = state.items || [];
+      state.sections.forEach((s,idx)=>{
+        if(typeof s.order !== "number") s.order = idx+1;
+        if(!s.number){
+          const m = (s.name||"").match(/^(\d+)/);
+          s.number = m ? m[1] : String(idx+1);
+        }
+      });
+      normalizeSectionOrders();
       state.collapsedSections = state.collapsedSections || {};
+      state.items.forEach(it=>{
+        it.reports = Array.isArray(it.reports) ? it.reports.map(normalizeReport) : [];
+        it.finalReport = it.finalReport ? normalizeReport(it.finalReport) : null;
+        it.kpi = it.kpi || {name:"", unit:"", plan:""};
+      });
     }
     ensureDefaults();
 
@@ -996,6 +1161,10 @@
     let currentTab = "table";
     let editingId = null;
     let dragId = null;
+    let currentReports = [];
+    let currentFinalReport = null;
+    let editingReportId = null;
+    let editingSectionId = null;
 
     /* =========================
        Helpers
@@ -1015,15 +1184,40 @@
     function uniqueList(arr){
       return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
     }
+    function sectionDisplayName(sec){
+      if(!sec) return "—";
+      const num = sec.number ? `${sec.number}. ` : "";
+      return `${num}${sec.name||""}`.trim();
+    }
     function autoNumberForItem(sectionId, excludeId=null){
       const secs = sortedSections();
       const idx = secs.findIndex(s=>s.id===sectionId);
-      const secNum = idx>=0 ? idx+1 : secs.length+1;
-      const count = state.items.filter(x=>x.sectionId===sectionId && x.id!==excludeId).length + 1;
-      return `${secNum}.${count}`;
+      const secNum = idx>=0 ? (secs[idx].number || String(idx+1)) : String(secs.length+1);
+      const used = new Set(state.items.filter(x=>x.sectionId===sectionId && x.id!==excludeId).map(x=>x.number).filter(Boolean));
+      let n = 1;
+      while(used.has(`${secNum}.${n}`)) n++;
+      return `${secNum}.${n}`;
+    }
+    function reportSummary(it){
+      const cnt = (it.reports||[]).length;
+      const hasFinal = !!it.finalReport;
+      if(!cnt && !hasFinal) return "—";
+      return `${cnt} шт.${hasFinal ? " + итог" : ""}`;
+    }
+    function kpiName(it){
+      const k = it.kpi || {};
+      if(!k.name && !k.plan && !k.unit) return "—";
+      return `${k.name||"—"}`;
+    }
+    function kpiPlan(it){
+      const k = it.kpi || {};
+      if(!k.name && !k.plan && !k.unit) return "—";
+      const val = k.plan || "—";
+      const unit = k.unit ? ` ${k.unit}` : "";
+      return `${val}${unit}`;
     }
     function sortedSections(){
-      return [...state.sections].sort((a,b)=>(a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
+      return [...state.sections].sort((a,b)=>(a.order||0)-(b.order||0) || (a.name||"").localeCompare(b.name||""));
     }
     function byId(list, id){ return list.find(x=>x.id===id); }
 
@@ -1060,7 +1254,7 @@
         }
 
         if(q){
-          const blob = [it.name,it.result,it.note,it.owner,it.co,it.money].join(" ").toLowerCase();
+          const blob = [it.name,it.result,it.note,it.owner,it.co,it.money,it.kpi?.name,it.kpi?.plan,it.kpi?.unit,(it.reports||[]).map(r=>r.text).join(" "), it.finalReport?.text].join(" ").toLowerCase();
           if(!blob.includes(q)) return false;
         }
         return true;
@@ -1074,6 +1268,8 @@
       document.getElementById("dkPeriodStart").value = state.dk.periodStart || "";
       document.getElementById("dkPeriodEnd").value = state.dk.periodEnd || "";
       document.getElementById("dkOwner").value = state.dk.owner || "";
+      document.getElementById("dkApprovedBy").value = state.dk.approvedBy || "";
+      document.getElementById("dkApprovedDoc").value = state.dk.approvedDoc || "";
     }
 
     function renderFilters(){
@@ -1089,7 +1285,7 @@
       secs.forEach(s=>{
         const o = document.createElement("option");
         o.value = s.id;
-        o.textContent = s.name;
+        o.textContent = sectionDisplayName(s);
         sel.appendChild(o);
       });
       if([...sel.options].some(o=>o.value===current)) sel.value = current;
@@ -1102,7 +1298,7 @@
       secs.forEach(s=>{
         const o = document.createElement("option");
         o.value = s.id;
-        o.textContent = s.name;
+        o.textContent = sectionDisplayName(s);
         ms.appendChild(o);
       });
       if([...ms.options].some(o=>o.value===currM)) ms.value = currM;
@@ -1173,9 +1369,9 @@
 
         const trS = document.createElement("tr");
         trS.className = "sectionRow";
-        trS.innerHTML = `<td colspan="12">
+        trS.innerHTML = `<td colspan="15">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-            <div>${esc(sec.name)} <span style="color:var(--muted);font-weight:700">(${inSecAll.length})</span></div>
+            <div>${esc(sectionDisplayName(sec))} <span style="color:var(--muted);font-weight:700">(${inSecAll.length})</span></div>
             <div class="rowActions">
               <button class="btn small" type="button" data-action="toggle">${collapsed?"Развернуть":"Свернуть"}</button>
               <button class="btn small" type="button" data-action="edit">Редактировать</button>
@@ -1195,16 +1391,13 @@
               save();
               renderAll();
             } else if(act==="edit"){
-              const newName = prompt("Название раздела", sec.name || "");
-              if(!newName) return;
-              sec.name = newName.trim();
-              save();
-              renderAll();
+              openSectionEdit(sec);
             } else if(act==="delete"){
               if(inSecAll.length && !confirm("Удалить раздел и все мероприятия?")) return;
               state.sections = state.sections.filter(s=>s.id!==sec.id);
               state.items = state.items.filter(it=>it.sectionId!==sec.id);
               delete state.collapsedSections[sec.id];
+              normalizeSectionOrders();
               save();
               renderAll();
             } else if(act==="stats"){
@@ -1226,13 +1419,16 @@
             tr.innerHTML = `
               <td>${esc(it.number||"—")}</td>
               <td><b>${esc(it.name||"—")}</b></td>
-              <td>${esc(sec.name)}</td>
+              <td>${esc(sectionDisplayName(sec))}</td>
               <td>${esc(Status[it.status]?.label || it.status)}</td>
               <td>${esc(it.planStart||"—")}</td>
               <td>${esc(it.planEnd||"—")}</td>
               <td>${esc(it.owner||"—")}</td>
               <td>${esc(it.co||"—")}</td>
               <td>${esc(it.money||"—")}</td>
+              <td>${esc(kpiName(it))}</td>
+              <td>${esc(kpiPlan(it))}</td>
+              <td>${esc(reportSummary(it))}</td>
               <td>${esc(it.result||"—")}</td>
               <td>${esc(it.note||"—")}</td>
               <td>
@@ -1258,7 +1454,7 @@
       const moneySum = items.reduce((m,it)=> m + parseMoney(it.money), 0);
 
       document.getElementById("secStatsTitle").textContent = "Статистика раздела";
-      document.getElementById("secStatsSub").textContent = sec.name || "—";
+      document.getElementById("secStatsSub").textContent = sectionDisplayName(sec) || "—";
       document.getElementById("secStatsCount").textContent = `${items.length} шт.`;
       document.getElementById("secStatsTotal").textContent = items.length;
       document.getElementById("secStatsPlanned").textContent = counts.planned||0;
@@ -1271,16 +1467,79 @@
 
       const owners = uniqueList(items.map(it=>(it.owner||"").trim()).filter(Boolean));
       const coExecs = uniqueList(items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)));
-      const ownersBox = document.getElementById("secStatsOwners");
-      const coBox = document.getElementById("secStatsCo");
-      ownersBox.innerHTML = owners.length ? owners.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
-      coBox.innerHTML = coExecs.length ? coExecs.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
+      const allExecs = uniqueList([...owners, ...coExecs]);
+      const execBox = document.getElementById("secStatsExecs");
+      execBox.innerHTML = allExecs.length ? allExecs.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
 
       modal.classList.add("active");
     }
 
     function closeSectionStats(){
       document.getElementById("sectionStatsModal").classList.remove("active");
+    }
+
+    function normalizeSectionOrders(){
+      sortedSections().forEach((s,i)=>{ s.order = i+1; });
+    }
+
+    function openSectionEdit(sec){
+      editingSectionId = sec.id;
+      document.getElementById("secEditSub").textContent = sectionDisplayName(sec);
+      document.getElementById("secEditNumber").value = sec.number || "";
+      document.getElementById("secEditName").value = sec.name || "";
+      document.getElementById("sectionEditModal").classList.add("active");
+    }
+
+    function closeSectionEdit(){
+      document.getElementById("sectionEditModal").classList.remove("active");
+      editingSectionId = null;
+    }
+
+    function saveSectionEdit(){
+      const sec = byId(state.sections, editingSectionId);
+      if(!sec) return;
+      const newName = document.getElementById("secEditName").value.trim();
+      const newNumber = document.getElementById("secEditNumber").value.trim();
+      if(newName) sec.name = newName;
+      sec.number = newNumber || sec.number || String(sortedSections().findIndex(s=>s.id===sec.id)+1);
+      normalizeSectionOrders();
+      save();
+      renderAll();
+      closeSectionEdit();
+    }
+
+    function moveSection(direction){
+      const secs = sortedSections();
+      const idx = secs.findIndex(s=>s.id===editingSectionId);
+      if(idx < 0) return;
+      if(direction === "up" && idx>0){
+        const prev = secs[idx-1];
+        const cur = secs[idx];
+        [cur.order, prev.order] = [prev.order, cur.order];
+      } else if(direction === "down" && idx < secs.length-1){
+        const next = secs[idx+1];
+        const cur = secs[idx];
+        [cur.order, next.order] = [next.order, cur.order];
+      }
+      normalizeSectionOrders();
+      save();
+      renderAll();
+      const sec = byId(state.sections, editingSectionId);
+      if(sec) document.getElementById("secEditSub").textContent = sectionDisplayName(sec);
+    }
+
+    function deleteSectionFromModal(){
+      const sec = byId(state.sections, editingSectionId);
+      if(!sec) return;
+      const count = state.items.filter(it=>it.sectionId===sec.id).length;
+      if(count && !confirm("Удалить раздел и все мероприятия?")) return;
+      state.sections = state.sections.filter(s=>s.id!==sec.id);
+      state.items = state.items.filter(it=>it.sectionId!==sec.id);
+      delete state.collapsedSections[sec.id];
+      normalizeSectionOrders();
+      save();
+      renderAll();
+      closeSectionEdit();
     }
 
     /* =========================
@@ -1330,7 +1589,7 @@
           sortedSections().forEach(sec=>{
             const inLane = colItems.filter(it=>it.sectionId===sec.id);
             if(!inLane.length) return;
-            body.appendChild(laneNode(sec.name, inLane));
+            body.appendChild(laneNode(sectionDisplayName(sec), inLane));
           });
         } else if(groupBy === "owner"){
           const owners = Array.from(new Set(colItems.map(it => (it.owner||"—").trim() || "—"))).sort((a,b)=>a.localeCompare(b));
@@ -1387,6 +1646,8 @@
       if(it.owner) chips.push(`<span class="chip">${esc(it.owner)}</span>`);
       if(it.planEnd) chips.push(`<span class="chip muted">${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}</span>`);
       if(it.money) chips.push(`<span class="chip muted">${esc(it.money)}</span>`);
+      const rep = reportSummary(it);
+      if(rep !== "—") chips.push(`<span class="chip muted">Отчеты: ${esc(rep)}</span>`);
       if(it.status === "done") chips.push(`<span class="chip ok">Исполнено</span>`);
       if(it.status === "canceled") chips.push(`<span class="chip bad">Отменено</span>`);
 
@@ -1445,7 +1706,7 @@
 
         const lS = document.createElement("div");
         lS.className = "gLeft";
-        lS.innerHTML = `<div class="gRowL"><div class="gName">${esc(sec.name)}</div><div class="gSub"><span class="chip muted">${inSec.length} шт.</span></div></div>`;
+        lS.innerHTML = `<div class="gRowL"><div class="gName">${esc(sectionDisplayName(sec))}</div><div class="gSub"><span class="chip muted">${inSec.length} шт.</span></div></div>`;
         const rS = document.createElement("div");
         rS.innerHTML = `<div class="gRowR"><div class="barWrap" style="height:10px;background:var(--panel2)"></div></div>`;
         inner.appendChild(lS); inner.appendChild(rS);
@@ -1531,6 +1792,113 @@
     ========================= */
     const modal = document.getElementById("modal");
 
+    function resetReportForm(){
+      editingReportId = null;
+      document.getElementById("reportDate").value = "";
+      document.getElementById("reportPeriod").value = "";
+      document.getElementById("reportText").value = "";
+    }
+    function renderReportsUI(){
+      const box = document.getElementById("reportsList");
+      box.innerHTML = "";
+      if(!currentReports.length){
+        box.textContent = "Промежуточных отчетов нет";
+        return;
+      }
+      const sorted = [...currentReports].sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.period||"").localeCompare(b.period||""));
+      sorted.forEach(rep=>{
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.justifyContent = "space-between";
+        row.style.alignItems = "center";
+        row.style.gap = "8px";
+        row.style.padding = "6px 0";
+        row.style.borderBottom = "1px solid var(--border)";
+        row.innerHTML = `<div>
+          <div style="font-weight:700">${esc(rep.period||rep.date||"Отчет")}</div>
+          <div style="color:var(--muted); font-size:12px">${esc(rep.date||"Без даты")}</div>
+          <div style="font-size:12px">${esc(rep.text||"")}</div>
+        </div>
+        <div class="btnRow">
+          <button class="btn small" type="button" data-action="edit">Редактировать</button>
+          <button class="btn small danger" type="button" data-action="delete">Удалить</button>
+        </div>`;
+        row.querySelector('[data-action="edit"]').addEventListener("click", ()=>{
+          editingReportId = rep.id;
+          document.getElementById("reportDate").value = rep.date || "";
+          document.getElementById("reportPeriod").value = rep.period || "";
+          document.getElementById("reportText").value = rep.text || "";
+          document.getElementById("reportForm").style.display = "block";
+        });
+        row.querySelector('[data-action="delete"]').addEventListener("click", ()=>{
+          currentReports = currentReports.filter(r=>r.id!==rep.id);
+          renderReportsUI();
+        });
+        box.appendChild(row);
+      });
+    }
+
+    function hideReportForm(){
+      document.getElementById("reportForm").style.display = "none";
+      resetReportForm();
+    }
+
+    function saveReportForm(){
+      const rep = {
+        id: editingReportId || uid("rep"),
+        date: document.getElementById("reportDate").value,
+        period: document.getElementById("reportPeriod").value.trim(),
+        text: document.getElementById("reportText").value.trim(),
+      };
+      if(editingReportId){
+        const idx = currentReports.findIndex(r=>r.id===editingReportId);
+        if(idx>=0) currentReports[idx] = rep;
+      } else {
+        currentReports.push(rep);
+      }
+      hideReportForm();
+      renderReportsUI();
+    }
+
+    function renderFinalReportView(){
+      const view = document.getElementById("finalReportView");
+      if(!currentFinalReport){
+        view.textContent = "Итоговый отчет не заполнен";
+      } else {
+        view.innerHTML = `<div style="font-weight:700">${esc(currentFinalReport.period||currentFinalReport.date||"Итоговый отчет")}</div>
+          <div style="color:var(--muted); font-size:12px">${esc(currentFinalReport.date||"Без даты")}</div>
+          <div style="font-size:12px">${esc(currentFinalReport.text||"")}</div>`;
+      }
+    }
+
+    function openFinalForm(){
+      document.getElementById("finalDate").value = currentFinalReport?.date || "";
+      document.getElementById("finalPeriod").value = currentFinalReport?.period || "";
+      document.getElementById("finalText").value = currentFinalReport?.text || "";
+      document.getElementById("finalReportForm").style.display = "block";
+    }
+
+    function closeFinalForm(){
+      document.getElementById("finalReportForm").style.display = "none";
+    }
+
+    function saveFinalReport(){
+      currentFinalReport = {
+        id: currentFinalReport?.id || uid("rep"),
+        date: document.getElementById("finalDate").value,
+        period: document.getElementById("finalPeriod").value.trim(),
+        text: document.getElementById("finalText").value.trim(),
+      };
+      renderFinalReportView();
+      closeFinalForm();
+    }
+
+    function deleteFinalReport(){
+      currentFinalReport = null;
+      renderFinalReportView();
+      closeFinalForm();
+    }
+
     function openModal(id){
       renderFilters(); // ensure section list up-to-date
       const isNew = !id;
@@ -1552,6 +1920,9 @@
           result:"",
           note:"",
           number:"",
+          reports:[],
+          finalReport:null,
+          kpi:{name:"", unit:"", plan:""},
           createdAt: nowISO(),
           updatedAt: nowISO()
         };
@@ -1577,6 +1948,9 @@
       document.getElementById("mCo").value = current.co || "";
       document.getElementById("mMoney").value = current.money || "";
       document.getElementById("mNumber").value = current.number || "";
+      document.getElementById("mKpiName").value = current.kpi?.name || "";
+      document.getElementById("mKpiUnit").value = current.kpi?.unit || "";
+      document.getElementById("mKpiPlan").value = current.kpi?.plan || "";
 
       document.getElementById("mName").value = current.name || "";
       document.getElementById("mResult").value = current.result || "";
@@ -1584,6 +1958,13 @@
 
       document.getElementById("mCreated").textContent = current.createdAt || "—";
       document.getElementById("mUpdated").textContent = current.updatedAt || "—";
+
+      currentReports = (current.reports||[]).map(r=>({...r}));
+      currentFinalReport = current.finalReport ? {...current.finalReport} : null;
+      hideReportForm();
+      closeFinalForm();
+      renderReportsUI();
+      renderFinalReportView();
 
       // Delete button disabled for new unsaved
       document.getElementById("mDelete").disabled = !!tempNewItem;
@@ -1595,6 +1976,9 @@
       modal.classList.remove("active");
       editingId = null;
       tempNewItem = null;
+      currentReports = [];
+      currentFinalReport = null;
+      editingReportId = null;
     }
 
     let tempNewItem = null;
@@ -1611,7 +1995,14 @@
         number: document.getElementById("mNumber").value.trim(),
         name: document.getElementById("mName").value.trim(),
         result: document.getElementById("mResult").value.trim(),
-        note: document.getElementById("mNote").value.trim()
+        note: document.getElementById("mNote").value.trim(),
+        kpi: {
+          name: document.getElementById("mKpiName").value.trim(),
+          unit: document.getElementById("mKpiUnit").value.trim(),
+          plan: document.getElementById("mKpiPlan").value.trim(),
+        },
+        reports: currentReports.map(r=>({...r})),
+        finalReport: currentFinalReport ? {...currentFinalReport} : null,
       };
     }
 
@@ -1696,6 +2087,7 @@
         const obj = JSON.parse(text);
         if(!obj || !obj.dk || !Array.isArray(obj.sections) || !Array.isArray(obj.items)) throw new Error("Неверная структура");
         state = obj;
+        ensureDefaults();
         save();
         renderAll();
         alert("Импорт выполнен.");
@@ -1759,13 +2151,23 @@
       save();
       renderAll();
     });
+    document.getElementById("dkApprovedBy").addEventListener("input", (e)=>{
+      state.dk.approvedBy = e.target.value;
+      save();
+      renderAll();
+    });
+    document.getElementById("dkApprovedDoc").addEventListener("input", (e)=>{
+      state.dk.approvedDoc = e.target.value;
+      save();
+      renderAll();
+    });
 
     // Add section
     document.getElementById("btnAddSection").addEventListener("click", ()=>{
       const name = prompt("Наименование раздела:", "Новый раздел");
       if(!name) return;
       const order = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
-      state.sections.push({id: uid("sec"), name: name.trim(), order, createdAt: nowISO()});
+      state.sections.push({id: uid("sec"), name: name.trim(), number:String(order), order, createdAt: nowISO()});
       save();
       renderAll();
     });
@@ -1815,12 +2217,31 @@
     document.getElementById("modal").addEventListener("click", (e)=>{
       if(e.target.id === "modal") closeModal();
     });
+    document.getElementById("addReportBtn").addEventListener("click", ()=>{
+      resetReportForm();
+      document.getElementById("reportForm").style.display = "block";
+    });
+    document.getElementById("reportSave").addEventListener("click", saveReportForm);
+    document.getElementById("reportCancel").addEventListener("click", hideReportForm);
+    document.getElementById("finalReportEdit").addEventListener("click", openFinalForm);
+    document.getElementById("finalReportDelete").addEventListener("click", deleteFinalReport);
+    document.getElementById("finalSave").addEventListener("click", saveFinalReport);
+    document.getElementById("finalCancel").addEventListener("click", closeFinalForm);
     document.getElementById("sectionStatsModal").addEventListener("click", (e)=>{
       if(e.target.id === "sectionStatsModal") closeSectionStats();
     });
     ["secStatsClose","secStatsClose2"].forEach(id=>{
       document.getElementById(id).addEventListener("click", closeSectionStats);
     });
+    document.getElementById("sectionEditModal").addEventListener("click", (e)=>{
+      if(e.target.id === "sectionEditModal") closeSectionEdit();
+    });
+    document.getElementById("secEditClose").addEventListener("click", closeSectionEdit);
+    document.getElementById("secEditCancel").addEventListener("click", closeSectionEdit);
+    document.getElementById("secEditSave").addEventListener("click", saveSectionEdit);
+    document.getElementById("secEditDelete").addEventListener("click", deleteSectionFromModal);
+    document.getElementById("secMoveUp").addEventListener("click", ()=>moveSection("up"));
+    document.getElementById("secMoveDown").addEventListener("click", ()=>moveSection("down"));
 
     // Demo / clear / export / import
     document.getElementById("btnDemo").addEventListener("click", ()=>{
@@ -1832,7 +2253,8 @@
 
     document.getElementById("btnClear").addEventListener("click", ()=>{
       if(!confirm("Очистить все данные?")) return;
-      state = { dk:{name:"Дорожная карта", year:String(new Date().getFullYear()), periodStart:"", periodEnd:"", owner:""}, sections:[], items:[], collapsedSections:{} };
+      state = { dk:{name:"Дорожная карта", year:String(new Date().getFullYear()), periodStart:"", periodEnd:"", owner:"", approvedBy:"", approvedDoc:""}, sections:[], items:[], collapsedSections:{} };
+      ensureDefaults();
       localStorage.removeItem(STORAGE_KEY);
       save();
       renderAll();
