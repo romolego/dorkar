@@ -1,1 +1,1615 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Эталон — референс «Дорожные карты» (Таблица / Kanban / Гант)</title>
+  <style>
+    :root{
+      --bg:#f4f6f9;
+      --panel:#ffffff;
+      --panel2:#f8fafc;
+      --fg:#111827;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --shadow:0 1px 2px rgba(0,0,0,.06), 0 10px 25px rgba(0,0,0,.08);
+      --radius:12px;
+      --radius2:10px;
 
+      --red:#c62828;
+      --redSoft:#f8d7da;
+
+      --green:#2e7d32;
+      --greenSoft:#dff2e1;
+
+      --blue:#0d47a1;
+      --blueSoft:#dbeafe;
+
+      --grayCol:#f3f4f6;
+
+      --chipBg:#eef2ff;
+      --chipFg:#1f2937;
+
+      --btn:#2563eb;
+      --btnFg:#fff;
+      --btnGhost:#f3f4f6;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:var(--sans); color:var(--fg); background:var(--bg);
+    }
+
+    /* Top bar (approx Etalon header area) */
+    .topbar{
+      height:54px;
+      background:var(--panel);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 14px;
+      position:sticky; top:0; z-index:20;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px; min-width:260px;
+    }
+    .logo{
+      width:28px; height:28px; border-radius:8px;
+      background:linear-gradient(135deg,#2563eb,#60a5fa);
+      box-shadow:0 4px 12px rgba(37,99,235,.25);
+    }
+    .brandTitle{
+      display:flex; flex-direction:column; line-height:1.1;
+    }
+    .brandTitle strong{font-size:13px}
+    .brandTitle span{font-size:11px; color:var(--muted)}
+    .topActions{
+      display:flex; align-items:center; gap:10px;
+    }
+    .search{
+      display:flex; align-items:center; gap:8px;
+      padding:8px 10px; border:1px solid var(--border); border-radius:999px;
+      background:#fff; min-width:320px;
+    }
+    .search input{
+      border:none; outline:none; width:100%; font-size:13px;
+    }
+    .pill{
+      font-size:12px; color:var(--muted);
+      border:1px solid var(--border); background:var(--panel2);
+      padding:6px 10px; border-radius:999px;
+      display:inline-flex; gap:8px; align-items:center;
+    }
+
+    /* Layout */
+    .layout{
+      display:grid;
+      grid-template-columns: 260px 1fr;
+      min-height:calc(100vh - 54px);
+    }
+    @media (max-width: 1100px){
+      .layout{grid-template-columns:1fr}
+      .sidebar{display:none}
+      .search{min-width:200px}
+    }
+
+    /* Sidebar (keep minimal, not full Etalon left menu) */
+    .sidebar{
+      background:var(--panel);
+      border-right:1px solid var(--border);
+      padding:12px;
+    }
+    .sideBlock{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
+    }
+    .sideBlock h3{
+      margin:0; font-size:12px; padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      background:var(--panel2);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .sideBlock .body{padding:10px}
+    .field{margin-bottom:10px}
+    label{display:block; font-size:11px; color:var(--muted); margin-bottom:6px}
+    input[type="text"], input[type="date"], select, textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:9px 10px;
+      font-size:13px;
+      background:#fff;
+      outline:none;
+    }
+    textarea{min-height:70px; resize:vertical}
+    input:focus, select:focus, textarea:focus{border-color:rgba(37,99,235,.55); box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+
+    .btnRow{display:flex; gap:8px; flex-wrap:wrap}
+    .btn{
+      appearance:none; border:1px solid var(--border);
+      background:var(--btnGhost);
+      padding:9px 10px; border-radius:10px;
+      font-size:13px; cursor:pointer;
+      display:inline-flex; gap:8px; align-items:center;
+    }
+    .btn.primary{
+      background:var(--btn); border-color:var(--btn); color:var(--btnFg);
+    }
+    .btn.small{padding:7px 9px; font-size:12px; border-radius:9px}
+    .btn:disabled{opacity:.5; cursor:not-allowed}
+
+    /* Main */
+    .main{
+      padding:12px;
+    }
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panelHead{
+      padding:10px 12px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .panelHeadLeft{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .panelTitle{
+      font-weight:800; font-size:14px;
+    }
+    .tabs{
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .tab{
+      border:1px solid var(--border);
+      background:var(--panel2);
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:13px; cursor:pointer;
+    }
+    .tab.active{
+      background:rgba(37,99,235,.10);
+      border-color:rgba(37,99,235,.35);
+      color:#0b2a8a;
+      font-weight:800;
+    }
+
+    /* Table */
+    .tableWrap{overflow:auto}
+    table{
+      border-collapse:separate;
+      border-spacing:0;
+      width:100%;
+      min-width:1400px;
+      background:#fff;
+    }
+    thead th{
+      position:sticky; top:0;
+      background:var(--panel2);
+      border-bottom:1px solid var(--border);
+      font-size:12px;
+      text-align:left;
+      padding:10px 10px;
+      white-space:nowrap;
+      color:#374151;
+    }
+    tbody td{
+      border-bottom:1px solid var(--border);
+      padding:9px 10px;
+      font-size:13px;
+      vertical-align:top;
+    }
+    tbody tr:hover td{background:#fbfdff}
+    .rowActions{display:flex; gap:8px}
+    .linkBtn{
+      border:none; background:transparent; color:#2563eb; cursor:pointer;
+      font-size:13px; padding:0;
+    }
+    .sectionRow td{
+      background:linear-gradient(180deg,#f8fafc 0%, #f1f5f9 100%);
+      font-weight:900;
+      color:#0f172a;
+    }
+
+    /* Kanban (Etalon-like columns, soft tint) */
+    .kanban{
+      padding:12px;
+    }
+    .kbTop{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .kbTop .left{display:flex; gap:10px; align-items:end; flex-wrap:wrap}
+    .kbTop .right{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    .kbBoard{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(280px, 1fr));
+      gap:12px;
+      align-items:start;
+    }
+    @media (max-width: 1300px){
+      .kbBoard{grid-template-columns: repeat(2, minmax(280px, 1fr));}
+    }
+    @media (max-width: 800px){
+      .kbBoard{grid-template-columns: 1fr;}
+    }
+
+    .kbCol{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 1px 2px rgba(0,0,0,.05);
+      background:#fff;
+    }
+    .kbColHead{
+      padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      font-weight:900; font-size:13px;
+    }
+    .kbColHead .count{font-weight:800; color:var(--muted)}
+    .kbColBody{
+      padding:10px;
+      min-height:220px;
+      background:var(--grayCol);
+    }
+    .kbCol.red .kbColHead{background:var(--red); color:#fff}
+    .kbCol.red .kbColBody{background:var(--redSoft)}
+    .kbCol.green .kbColHead{background:var(--green); color:#fff}
+    .kbCol.green .kbColBody{background:var(--greenSoft)}
+    .kbCol.blue .kbColHead{background:var(--blue); color:#fff}
+    .kbCol.blue .kbColBody{background:var(--blueSoft)}
+    .kbCol.gray .kbColHead{background:#374151; color:#fff}
+    .kbCol.gray .kbColBody{background:#eceff3}
+
+    .kbCard{
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      padding:10px;
+      margin-bottom:10px;
+      cursor:grab;
+      box-shadow:0 1px 1px rgba(0,0,0,.04);
+    }
+    .kbCard:active{cursor:grabbing}
+    .kbTitle{font-weight:900; font-size:13px; margin:0 0 8px 0; line-height:1.25}
+    .kbMeta{display:flex; gap:8px; flex-wrap:wrap}
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--chipBg);
+      color:var(--chipFg);
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .chip.muted{background:#f3f4f6; color:#374151}
+    .chip.bad{background:rgba(220,38,38,.10); border-color:rgba(220,38,38,.25); color:#7f1d1d}
+    .chip.ok{background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.25); color:#065f46}
+
+    .dropHint{
+      border:2px dashed rgba(37,99,235,.35);
+      border-radius:12px;
+      padding:10px;
+      background:rgba(37,99,235,.06);
+      color:#0b2a8a;
+      font-size:12px;
+      margin-bottom:10px;
+      display:none;
+    }
+    .kbColBody.dragOver .dropHint{display:block}
+
+    /* Gantt */
+    .gantt{
+      padding:12px;
+    }
+    .gTop{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .gGrid{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:auto;
+      background:#fff;
+      box-shadow:0 1px 2px rgba(0,0,0,.05);
+    }
+    .gInner{
+      min-width:1200px;
+      display:grid;
+      grid-template-columns: 420px 1fr;
+    }
+    .gHeadL,.gHeadR{
+      position:sticky; top:0; z-index:3;
+      background:var(--panel2);
+      border-bottom:1px solid var(--border);
+      padding:10px;
+      font-weight:900; font-size:12px;
+    }
+    .gHeadL{left:0; position:sticky}
+    .gLeft{
+      position:sticky; left:0; z-index:2;
+      background:#fff;
+      border-right:1px solid var(--border);
+    }
+    .gRowL{
+      padding:10px;
+      border-bottom:1px solid var(--border);
+    }
+    .gName{font-weight:900; font-size:13px; margin-bottom:4px}
+    .gSub{font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap}
+    .gRowR{
+      border-bottom:1px solid var(--border);
+      padding:10px;
+    }
+    .months{
+      display:grid;
+      grid-template-columns: repeat(12, minmax(56px, 1fr));
+      gap:6px;
+      align-items:center;
+    }
+    .mCell{
+      text-align:center;
+      padding:6px 0;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      font-size:11px;
+      color:#374151;
+    }
+    .barWrap{
+      position:relative;
+      height:36px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:linear-gradient(180deg,#fff 0%, #fbfbff 100%);
+      overflow:hidden;
+    }
+    .bar{
+      position:absolute;
+      top:6px;
+      height:24px;
+      border-radius:10px;
+      padding:0 10px;
+      display:flex;
+      align-items:center;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      border:1px solid rgba(37,99,235,.35);
+      background:rgba(37,99,235,.15);
+      color:#0b2a8a;
+    }
+    .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
+    .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
+    .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
+
+    /* Modal (Etalon-like) */
+    .modal{
+      position:fixed; inset:0;
+      background:rgba(17,24,39,.35);
+      display:none;
+      align-items:center; justify-content:center;
+      padding:16px;
+      z-index:50;
+    }
+    .modal.active{display:flex}
+    .modalPanel{
+      width:min(980px, 100%);
+      background:#fff;
+      border-radius:14px;
+      border:1px solid var(--border);
+      box-shadow:0 16px 40px rgba(0,0,0,.22);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding:10px 12px;
+      background:var(--panel2);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modalHeadLeft{
+      display:flex; align-items:center; gap:10px;
+    }
+    .modalIcon{
+      width:30px; height:30px; border-radius:10px;
+      background:#e0e7ff;
+      border:1px solid #c7d2fe;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:900; color:#1e3a8a;
+    }
+    .modalTitle{
+      display:flex; flex-direction:column; line-height:1.15;
+    }
+    .modalTitle strong{font-size:13px}
+    .modalTitle span{font-size:11px; color:var(--muted)}
+    .modalClose{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:10px;
+      padding:7px 9px;
+      cursor:pointer;
+      font-size:13px;
+    }
+    .modalBody{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:12px;
+      padding:12px;
+      background:#fff;
+    }
+    @media (max-width: 1000px){
+      .modalBody{grid-template-columns:1fr}
+    }
+    .modalSide, .modalMain{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .modalSide h4, .modalMain h4{
+      margin:0;
+      padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      background:var(--panel2);
+      font-size:12px;
+      font-weight:900;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .modalSide .content, .modalMain .content{padding:10px}
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    .kv .line{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:10px;
+      align-items:center;
+      font-size:12px;
+    }
+    .kv .line .k{color:var(--muted)}
+    .kv .line .v{font-weight:700; color:#111827}
+    .modalFooter{
+      padding:10px 12px;
+      border-top:1px solid var(--border);
+      background:var(--panel2);
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .danger{
+      background:rgba(220,38,38,.10);
+      border-color:rgba(220,38,38,.25);
+      color:#7f1d1d;
+    }
+
+    .note{
+      font-size:12px; color:var(--muted); line-height:1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="brandTitle">
+        <strong>ЭТАЛОН</strong>
+        <span>Референс модуля «Дорожные карты»</span>
+      </div>
+    </div>
+    <div class="topActions">
+      <div class="search" title="Поиск по мероприятиям">
+        <span style="font-size:12px;color:var(--muted)">Поиск</span>
+        <input id="globalSearch" placeholder="наименование / результат / примечание / ответственный" />
+      </div>
+      <span class="pill"><span class="mono" id="stateBadge">state: ready</span></span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sideBlock">
+        <h3>
+          <span>Параметры ДК</span>
+          <span class="pill" id="dkMini">—</span>
+        </h3>
+        <div class="body">
+          <div class="field">
+            <label>Наименование дорожной карты</label>
+            <input type="text" id="dkName" placeholder="Например: ДК цифровизации (2026)" />
+          </div>
+          <div class="field">
+            <label>Год (для шкалы Ганта)</label>
+            <input type="text" id="dkYear" placeholder="2026" />
+          </div>
+
+          <div class="field">
+            <label>Фильтр: статус</label>
+            <select id="fStatus">
+              <option value="">Все</option>
+              <option value="planned">Запланировано</option>
+              <option value="work">В работе</option>
+              <option value="done">Исполнено</option>
+              <option value="canceled">Отменено</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Фильтр: раздел</label>
+            <select id="fSection"></select>
+          </div>
+
+          <div class="field">
+            <label>Фильтр: ответственный</label>
+            <input type="text" id="fOwner" placeholder="ФИО / подразделение" />
+          </div>
+
+          <div class="btnRow">
+            <button class="btn primary" id="btnAddItem">+ Мероприятие</button>
+            <button class="btn" id="btnAddSection">+ Раздел</button>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="btnRow">
+            <button class="btn small" id="btnDemo">Демо</button>
+            <button class="btn small" id="btnExport">Экспорт</button>
+            <button class="btn small" id="btnImport">Импорт</button>
+            <button class="btn small danger" id="btnClear">Очистить</button>
+          </div>
+
+          <div style="height:10px"></div>
+          <div class="note" id="kpi"></div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="panel">
+        <div class="panelHead">
+          <div class="panelHeadLeft">
+            <div class="panelTitle" id="panelTitle">Таблица</div>
+            <span class="pill">строк: <strong id="rowsCount">0</strong></span>
+          </div>
+          <div class="tabs">
+            <button class="tab active" data-tab="table">Таблица</button>
+            <button class="tab" data-tab="kanban">Доски</button>
+            <button class="tab" data-tab="gantt">Гант</button>
+          </div>
+        </div>
+
+        <!-- Views -->
+        <div id="viewTable" class="view">
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:260px">Заголовок тикета</th>
+                  <th style="width:170px">Раздел</th>
+                  <th style="width:120px">Статус</th>
+                  <th style="width:130px">План: начало</th>
+                  <th style="width:130px">План: конец</th>
+                  <th style="width:170px">Ответственный</th>
+                  <th style="width:220px">Соисполнители</th>
+                  <th style="width:160px">Финансирование</th>
+                  <th style="width:260px">Результат</th>
+                  <th style="width:220px">Примечание</th>
+                  <th style="width:120px">Действия</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="viewKanban" class="view" style="display:none">
+          <div class="kanban">
+            <div class="kbTop">
+              <div class="left">
+                <div class="field" style="margin:0; min-width:220px">
+                  <label>Группировка</label>
+                  <select id="kbGroupBy">
+                    <option value="none">Без группировки</option>
+                    <option value="section">По разделам</option>
+                    <option value="owner">По ответственным</option>
+                  </select>
+                </div>
+                <div class="field" style="margin:0; min-width:220px">
+                  <label>Показывать отменённые</label>
+                  <select id="kbShowCanceled">
+                    <option value="no">Нет</option>
+                    <option value="yes">Да</option>
+                  </select>
+                </div>
+              </div>
+              <div class="right">
+                <button class="btn primary" id="kbPlus">+ Карточка</button>
+              </div>
+            </div>
+
+            <div class="kbBoard" id="kbBoard"></div>
+          </div>
+        </div>
+
+        <div id="viewGantt" class="view" style="display:none">
+          <div class="gantt">
+            <div class="gTop">
+              <div class="left" style="display:flex; gap:10px; flex-wrap:wrap">
+                <div class="field" style="margin:0; min-width:220px">
+                  <label>Полоса по</label>
+                  <select id="gMode">
+                    <option value="plan">Плановым датам</option>
+                    <option value="fact">Факт (если есть, иначе план)</option>
+                  </select>
+                </div>
+                <div class="field" style="margin:0; min-width:220px">
+                  <label>Показывать отменённые</label>
+                  <select id="gShowCanceled">
+                    <option value="no">Нет</option>
+                    <option value="yes">Да</option>
+                  </select>
+                </div>
+              </div>
+              <div class="right">
+                <button class="btn primary" id="gPlus">+ Мероприятие</button>
+              </div>
+            </div>
+
+            <div class="gGrid">
+              <div class="gInner" id="gInner"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="modalPanel">
+      <div class="modalHead">
+        <div class="modalHeadLeft">
+          <div class="modalIcon">≡</div>
+          <div class="modalTitle">
+            <strong id="mTitle">Карточка</strong>
+            <span id="mSub">—</span>
+          </div>
+        </div>
+        <button class="modalClose" id="mClose">Закрыть</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="modalSide">
+          <h4>
+            <span>Поля</span>
+            <span class="pill" id="mId">—</span>
+          </h4>
+          <div class="content">
+            <div class="field">
+              <label>Статус</label>
+              <select id="mStatus">
+                <option value="planned">Запланировано</option>
+                <option value="work">В работе</option>
+                <option value="done">Исполнено</option>
+                <option value="canceled">Отменено</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Раздел</label>
+              <select id="mSection"></select>
+            </div>
+
+            <div class="field">
+              <label>План: начало</label>
+              <input type="date" id="mPlanStart" />
+            </div>
+
+            <div class="field">
+              <label>План: конец</label>
+              <input type="date" id="mPlanEnd" />
+            </div>
+
+            <div class="field">
+              <label>Ответственный</label>
+              <input type="text" id="mOwner" placeholder="ФИО / подразделение" />
+            </div>
+
+            <div class="field">
+              <label>Соисполнители (через ; )</label>
+              <input type="text" id="mCo" placeholder="Подразделение; подразделение" />
+            </div>
+
+            <div class="field">
+              <label>Финансирование</label>
+              <input type="text" id="mMoney" placeholder="например: 10 000 000" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modalMain">
+          <h4>
+            <span>Описание</span>
+            <span class="pill">вкладка</span>
+          </h4>
+          <div class="content">
+            <div class="field">
+              <label>Заголовок тикета</label>
+              <input type="text" id="mName" placeholder="Наименование мероприятия" />
+            </div>
+
+            <div class="field">
+              <label>Ожидаемый результат</label>
+              <textarea id="mResult" placeholder="Что должно быть получено по итогу"></textarea>
+            </div>
+
+            <div class="field">
+              <label>Примечание</label>
+              <textarea id="mNote" placeholder="Доп. условия / риски / ссылки"></textarea>
+            </div>
+
+            <div class="kv">
+              <div class="line"><div class="k">Создано:</div><div class="v" id="mCreated">—</div></div>
+              <div class="line"><div class="k">Обновлено:</div><div class="v" id="mUpdated">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modalFooter">
+        <div class="btnRow">
+          <button class="btn primary" id="mSave">Сохранить</button>
+          <button class="btn" id="mCancel">Отмена</button>
+        </div>
+        <div class="btnRow">
+          <button class="btn danger" id="mDelete">Удалить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="importFile" accept="application/json" style="display:none" />
+
+  <script>
+    /* =========================
+       Storage & data model
+    ========================= */
+    const STORAGE_KEY = "etalon_roadmaps_working_v1";
+    const Status = {
+      planned: {label:"Запланировано", col:"red"},
+      work: {label:"В работе", col:"green"},
+      done: {label:"Готово", col:"blue"},
+      canceled: {label:"Отменено", col:"gray"}
+    };
+    const Columns = [
+      {key:"planned", label:"Необходимо сделать", style:"red"},
+      {key:"work", label:"В работе", style:"green"},
+      {key:"done", label:"Готово", style:"blue"},
+      {key:"canceled", label:"Отменено", style:"gray"}
+    ];
+
+    function uid(prefix="id"){
+      return prefix + "_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    }
+    function nowISO(){
+      const d = new Date();
+      return d.toISOString().slice(0,19).replace("T"," ");
+    }
+    function badge(t){
+      const el = document.getElementById("stateBadge");
+      el.textContent = t;
+      setTimeout(()=>el.textContent="state: ready", 900);
+    }
+    function save(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      badge("state: saved");
+    }
+    function load(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return null;
+        return JSON.parse(raw);
+      }catch(e){
+        console.error(e);
+        return null;
+      }
+    }
+    function demo(){
+      const sec1 = uid("sec"), sec2 = uid("sec");
+      return {
+        dk: { name:"Дорожная карта (пример)", year:String(new Date().getFullYear()) },
+        sections: [
+          {id: sec1, name:"1. Организация", order:1},
+          {id: sec2, name:"2. Реализация", order:2},
+        ],
+        items: [
+          {
+            id: uid("it"),
+            name:"Подготовить проект распоряжения об утверждении ДК",
+            sectionId: sec1,
+            status:"work",
+            planStart: dateOf(1),
+            planEnd: dateOf(2),
+            owner:"Иванов И.И.",
+            co:"Юр.отдел; Аппарат",
+            money:"0",
+            result:"Проект НПА подготовлен и согласован",
+            note:"Согласование в 3 подразделениях",
+            createdAt: nowISO(),
+            updatedAt: nowISO()
+          },
+          {
+            id: uid("it"),
+            name:"Сформировать перечень мероприятий и ожидаемых результатов",
+            sectionId: sec1,
+            status:"planned",
+            planStart: dateOf(3),
+            planEnd: dateOf(4),
+            owner:"Петров П.П.",
+            co:"Проектный офис",
+            money:"—",
+            result:"Реестр мероприятий утверждён",
+            note:"",
+            createdAt: nowISO(),
+            updatedAt: nowISO()
+          },
+          {
+            id: uid("it"),
+            name:"Пилот: завести ДК в системе и отработать жизненный цикл",
+            sectionId: sec2,
+            status:"planned",
+            planStart: dateOf(6),
+            planEnd: dateOf(9),
+            owner:"Куратор ДК",
+            co:"ИТ; Методология",
+            money:"—",
+            result:"Пилот проведён, принято решение о тиражировании",
+            note:"",
+            createdAt: nowISO(),
+            updatedAt: nowISO()
+          },
+          {
+            id: uid("it"),
+            name:"Сформировать отчёт о статусе ДК для руководства",
+            sectionId: sec2,
+            status:"done",
+            planStart: dateOf(10),
+            planEnd: dateOf(10),
+            owner:"Аналитик",
+            co:"Куратор ДК",
+            money:"0",
+            result:"Отчёт направлен",
+            note:"",
+            createdAt: nowISO(),
+            updatedAt: nowISO()
+          }
+        ]
+      };
+    }
+    function dateOf(month){
+      const y = new Date().getFullYear();
+      const m = Math.min(12, Math.max(1, month));
+      const dt = new Date(Date.UTC(y, m-1, 1));
+      return dt.toISOString().slice(0,10);
+    }
+
+    let state = load() || demo();
+
+    /* =========================
+       UI state
+    ========================= */
+    let currentTab = "table";
+    let editingId = null;
+    let dragId = null;
+
+    /* =========================
+       Helpers
+    ========================= */
+    function esc(s){
+      const str = String(s ?? "");
+      return str.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+    function sortedSections(){
+      return [...state.sections].sort((a,b)=>(a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
+    }
+    function byId(list, id){ return list.find(x=>x.id===id); }
+
+    function globalQuery(){
+      return document.getElementById("globalSearch").value.trim().toLowerCase();
+    }
+    function filterStatus(){
+      return document.getElementById("fStatus").value;
+    }
+    function filterSection(){
+      return document.getElementById("fSection").value;
+    }
+    function filterOwner(){
+      return document.getElementById("fOwner").value.trim().toLowerCase();
+    }
+
+    function filteredItems(){
+      const q = globalQuery();
+      const fs = filterStatus();
+      const fsec = filterSection();
+      const fo = filterOwner();
+
+      return state.items.filter(it=>{
+        if(fs && it.status !== fs) return false;
+        if(fsec && it.sectionId !== fsec) return false;
+        if(fo && !(it.owner||"").toLowerCase().includes(fo)) return false;
+
+        if(q){
+          const blob = [it.name,it.result,it.note,it.owner,it.co,it.money].join(" ").toLowerCase();
+          if(!blob.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function setDKMini(){
+      document.getElementById("dkMini").textContent = (state.dk.year||"—");
+      document.getElementById("dkName").value = state.dk.name || "";
+      document.getElementById("dkYear").value = state.dk.year || "";
+    }
+
+    function renderFilters(){
+      const sel = document.getElementById("fSection");
+      const current = sel.value;
+      sel.innerHTML = "";
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = "Все";
+      sel.appendChild(all);
+
+      const secs = sortedSections();
+      secs.forEach(s=>{
+        const o = document.createElement("option");
+        o.value = s.id;
+        o.textContent = s.name;
+        sel.appendChild(o);
+      });
+      if([...sel.options].some(o=>o.value===current)) sel.value = current;
+      else sel.value = "";
+
+      // modal section select
+      const ms = document.getElementById("mSection");
+      const currM = ms.value;
+      ms.innerHTML = "";
+      secs.forEach(s=>{
+        const o = document.createElement("option");
+        o.value = s.id;
+        o.textContent = s.name;
+        ms.appendChild(o);
+      });
+      if([...ms.options].some(o=>o.value===currM)) ms.value = currM;
+    }
+
+    function renderKPI(){
+      const items = filteredItems();
+      const total = items.length;
+      const by = {planned:0, work:0, done:0, canceled:0};
+      items.forEach(it=>{ by[it.status] = (by[it.status]||0)+1; });
+
+      document.getElementById("kpi").innerHTML =
+        `Всего: <b>${total}</b><br>`+
+        `Необходимо сделать: <b>${by.planned||0}</b><br>`+
+        `В работе: <b>${by.work||0}</b><br>`+
+        `Готово: <b>${by.done||0}</b><br>`+
+        `Отменено: <b>${by.canceled||0}</b>`;
+    }
+
+    /* =========================
+       Table
+    ========================= */
+    function renderTable(){
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = "";
+
+      const items = filteredItems();
+      const secs = sortedSections();
+
+      let rows = 0;
+      secs.forEach(sec=>{
+        const inSec = items.filter(x=>x.sectionId===sec.id);
+        if(!inSec.length) return;
+
+        const trS = document.createElement("tr");
+        trS.className = "sectionRow";
+        trS.innerHTML = `<td colspan="11">${esc(sec.name)} <span style="color:var(--muted);font-weight:700">(${inSec.length})</span></td>`;
+        tbody.appendChild(trS);
+
+        inSec.sort((a,b)=>(a.planEnd||"").localeCompare(b.planEnd||"") || (a.name||"").localeCompare(b.name||""))
+          .forEach(it=>{
+            rows++;
+            const tr = document.createElement("tr");
+            tr.addEventListener("click",(e)=>{
+              if(e.target.closest("button")) return;
+              openModal(it.id);
+            });
+            tr.innerHTML = `
+              <td><b>${esc(it.name||"—")}</b></td>
+              <td>${esc(sec.name)}</td>
+              <td>${esc(Status[it.status]?.label || it.status)}</td>
+              <td>${esc(it.planStart||"—")}</td>
+              <td>${esc(it.planEnd||"—")}</td>
+              <td>${esc(it.owner||"—")}</td>
+              <td>${esc(it.co||"—")}</td>
+              <td>${esc(it.money||"—")}</td>
+              <td>${esc(it.result||"—")}</td>
+              <td>${esc(it.note||"—")}</td>
+              <td>
+                <div class="rowActions">
+                  <button class="btn small" type="button" onclick="openModal('${it.id}'); event.stopPropagation();">Открыть</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+      });
+
+      document.getElementById("rowsCount").textContent = String(rows);
+    }
+
+    /* =========================
+       Kanban (drag & drop)
+    ========================= */
+    function renderKanban(){
+      const board = document.getElementById("kbBoard");
+      board.innerHTML = "";
+
+      const groupBy = document.getElementById("kbGroupBy").value;
+      const showCanceled = document.getElementById("kbShowCanceled").value === "yes";
+
+      let items = filteredItems();
+      if(!showCanceled) items = items.filter(it=>it.status !== "canceled");
+
+      Columns.forEach(col=>{
+        const colItems = items.filter(it=>it.status === col.key);
+        const colDiv = document.createElement("div");
+        colDiv.className = `kbCol ${col.style}`;
+
+        colDiv.innerHTML = `
+          <div class="kbColHead">
+            <span>${esc(col.label)}</span>
+            <span class="count">${colItems.length}</span>
+          </div>
+          <div class="kbColBody" data-col="${col.key}">
+            <div class="dropHint">Отпустите карточку для смены статуса</div>
+          </div>
+        `;
+
+        const body = colDiv.querySelector(".kbColBody");
+        body.addEventListener("dragover", (e)=>{ e.preventDefault(); body.classList.add("dragOver"); });
+        body.addEventListener("dragleave", ()=> body.classList.remove("dragOver"));
+        body.addEventListener("drop", (e)=>{
+          e.preventDefault();
+          body.classList.remove("dragOver");
+          const targetStatus = body.dataset.col;
+          if(!dragId) return;
+          moveCardToStatus(dragId, targetStatus);
+          dragId = null;
+        });
+
+        // Append cards (grouped or flat)
+        if(groupBy === "none"){
+          colItems.forEach(it=>body.appendChild(kbCardNode(it)));
+        } else if(groupBy === "section"){
+          sortedSections().forEach(sec=>{
+            const inLane = colItems.filter(it=>it.sectionId===sec.id);
+            if(!inLane.length) return;
+            body.appendChild(laneNode(sec.name, inLane));
+          });
+        } else if(groupBy === "owner"){
+          const owners = Array.from(new Set(colItems.map(it => (it.owner||"—").trim() || "—"))).sort((a,b)=>a.localeCompare(b));
+          owners.forEach(owner=>{
+            const inLane = colItems.filter(it => ((it.owner||"—").trim()||"—") === owner);
+            if(!inLane.length) return;
+            body.appendChild(laneNode(owner, inLane));
+          });
+        }
+
+        board.appendChild(colDiv);
+      });
+    }
+
+    function laneNode(name, items){
+      const wrap = document.createElement("div");
+      wrap.style.marginBottom = "10px";
+      wrap.innerHTML = `
+        <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden; background:#fff;">
+          <div style="padding:8px 10px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#fff 0%, #fafafa 100%); font-weight:900; font-size:12px; display:flex; justify-content:space-between; gap:10px;">
+            <span>${esc(name)}</span>
+            <span class="pill"><b>${items.length}</b></span>
+          </div>
+          <div style="padding:10px"></div>
+        </div>
+      `;
+      const body = wrap.querySelector("div > div:last-child");
+      items.forEach(it=>body.appendChild(kbCardNode(it)));
+      return wrap;
+    }
+
+    function kbCardNode(it){
+      const card = document.createElement("div");
+      card.className = "kbCard";
+      card.draggable = true;
+      card.dataset.id = it.id;
+
+      card.addEventListener("dragstart", ()=>{
+        dragId = it.id;
+      });
+      card.addEventListener("dblclick", ()=> openModal(it.id));
+      card.addEventListener("click", (e)=>{
+        // single click: open (like Etalon card click)
+        // keep drag usable: do not open on dragstart
+        if(e.detail === 1){
+          // delay to allow drag gesture
+          setTimeout(()=>{
+            if(!dragId) openModal(it.id);
+          }, 120);
+        }
+      });
+
+      const chips = [];
+      if(it.owner) chips.push(`<span class="chip">${esc(it.owner)}</span>`);
+      if(it.planEnd) chips.push(`<span class="chip muted">${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}</span>`);
+      if(it.money) chips.push(`<span class="chip muted">${esc(it.money)}</span>`);
+      if(it.status === "done") chips.push(`<span class="chip ok">Исполнено</span>`);
+      if(it.status === "canceled") chips.push(`<span class="chip bad">Отменено</span>`);
+
+      card.innerHTML = `
+        <div class="kbTitle">${esc(it.name||"—")}</div>
+        <div class="kbMeta">${chips.join("")}</div>
+      `;
+      return card;
+    }
+
+    function moveCardToStatus(itemId, status){
+      const it = byId(state.items, itemId);
+      if(!it) return;
+      it.status = status;
+      it.updatedAt = nowISO();
+      save();
+      renderAll();
+    }
+
+    /* =========================
+       Gantt (read-only bars, create via plus)
+    ========================= */
+    function renderGantt(){
+      const inner = document.getElementById("gInner");
+      inner.innerHTML = "";
+
+      const mode = document.getElementById("gMode").value;
+      const showCanceled = document.getElementById("gShowCanceled").value === "yes";
+      const year = parseInt((state.dk.year||String(new Date().getFullYear())).trim(), 10) || new Date().getFullYear();
+
+      let items = filteredItems();
+      if(!showCanceled) items = items.filter(it=>it.status !== "canceled");
+
+      // Head
+      const hL = document.createElement("div");
+      hL.className = "gHeadL";
+      hL.textContent = "Мероприятия";
+      const hR = document.createElement("div");
+      hR.className = "gHeadR";
+      hR.textContent = `Шкала: ${year} (месяцы)`;
+      inner.appendChild(hL); inner.appendChild(hR);
+
+      // months row
+      const l0 = document.createElement("div");
+      l0.className = "gLeft";
+      l0.innerHTML = `<div class="gRowL"><div class="gName">Раздел / Ответственный</div><div class="gSub">Клик по строке — карточка</div></div>`;
+      const r0 = document.createElement("div");
+      r0.innerHTML = `<div class="gRowR"><div class="months">${Array.from({length:12},(_,i)=>`<div class="mCell">${mName(i+1)}</div>`).join("")}</div></div>`;
+      inner.appendChild(l0); inner.appendChild(r0);
+
+      // by sections
+      const secs = sortedSections();
+      secs.forEach(sec=>{
+        const inSec = items.filter(it=>it.sectionId===sec.id);
+        if(!inSec.length) return;
+
+        const lS = document.createElement("div");
+        lS.className = "gLeft";
+        lS.innerHTML = `<div class="gRowL"><div class="gName">${esc(sec.name)}</div><div class="gSub"><span class="chip muted">${inSec.length} шт.</span></div></div>`;
+        const rS = document.createElement("div");
+        rS.innerHTML = `<div class="gRowR"><div class="barWrap" style="height:10px;background:var(--panel2)"></div></div>`;
+        inner.appendChild(lS); inner.appendChild(rS);
+
+        inSec.sort((a,b)=>(a.planStart||"").localeCompare(b.planStart||"") || (a.name||"").localeCompare(b.name||""))
+          .forEach(it=>{
+            const l = document.createElement("div");
+            l.className = "gLeft";
+            l.innerHTML = `
+              <div class="gRowL">
+                <div class="gName">${esc(it.name||"—")}</div>
+                <div class="gSub">
+                  <span class="chip">${esc(it.owner||"—")}</span>
+                  <span class="chip muted">${esc((it.planStart||"—") + " → " + (it.planEnd||"—"))}</span>
+                </div>
+              </div>
+            `;
+            l.addEventListener("click", ()=>openModal(it.id));
+
+            const r = document.createElement("div");
+            r.className = "gRowR";
+            r.innerHTML = ganttBarHTML(it, year, mode);
+            r.addEventListener("click", ()=>openModal(it.id));
+
+            inner.appendChild(l);
+            inner.appendChild(r);
+          });
+      });
+    }
+
+    function ganttBarHTML(it, year, mode){
+      const planS = it.planStart || "";
+      const planE = it.planEnd || "";
+      let s = planS, e = planE;
+
+      if(mode === "fact"){
+        // fact not stored in this version; keep plan behavior (we will extend later)
+        s = planS; e = planE;
+      }
+
+      if(!s || !e){
+        return `<div class="barWrap"><div style="padding:8px 10px; color:var(--muted); font-size:12px">Нет дат</div></div>`;
+      }
+
+      const sY = parseInt(s.slice(0,4),10), sM = parseInt(s.slice(5,7),10);
+      const eY = parseInt(e.slice(0,4),10), eM = parseInt(e.slice(5,7),10);
+
+      const startMonth = (sY < year) ? 1 : (sY > year ? 13 : sM);
+      const endMonth   = (eY > year) ? 12 : (eY < year ? 0 : eM);
+
+      if(startMonth > 12 || endMonth < 1){
+        return `<div class="barWrap"><div style="padding:8px 10px; color:var(--muted); font-size:12px">Вне выбранного года</div></div>`;
+      }
+
+      const sm = Math.max(1, Math.min(12, startMonth));
+      const em = Math.max(1, Math.min(12, endMonth));
+      const leftPct = ((sm-1)/12)*100;
+      const widthPct = (Math.max(1,(em-sm+1))/12)*100;
+
+      let cls = "";
+      if(it.status === "done") cls = "done";
+      else if(it.status === "work") cls = "work";
+      else if(it.status === "canceled") cls = "over";
+
+      const label = `${mName(sm)}–${mName(em)}`;
+
+      return `
+        <div class="barWrap">
+          <div class="bar ${cls}" style="left:${leftPct}%; width:${widthPct}%;">
+            ${esc(label)}
+          </div>
+        </div>
+      `;
+    }
+
+    function mName(m){
+      const names = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+      return names[m-1] || String(m);
+    }
+
+    /* =========================
+       Modal (create/edit) - single source of truth
+    ========================= */
+    const modal = document.getElementById("modal");
+
+    function openModal(id){
+      renderFilters(); // ensure section list up-to-date
+      const isNew = !id;
+      let it = isNew ? null : byId(state.items, id);
+      if(!it && !isNew) return;
+
+      if(isNew){
+        const secId = sortedSections()[0]?.id || null;
+        it = {
+          id: uid("it"),
+          name:"",
+          sectionId: secId,
+          status:"planned",
+          planStart:"",
+          planEnd:"",
+          owner:"",
+          co:"",
+          money:"",
+          result:"",
+          note:"",
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        };
+        // not yet saved; keep in temp
+        editingId = it.id;
+        tempNewItem = it;
+      }else{
+        editingId = id;
+        tempNewItem = null;
+      }
+
+      const current = tempNewItem || it;
+
+      document.getElementById("mTitle").textContent = isNew ? "Создание карточки" : "Редактирование карточки";
+      document.getElementById("mSub").textContent = current.name ? current.name : "—";
+      document.getElementById("mId").textContent = current.id;
+
+      document.getElementById("mStatus").value = current.status;
+      document.getElementById("mSection").value = current.sectionId || "";
+      document.getElementById("mPlanStart").value = current.planStart || "";
+      document.getElementById("mPlanEnd").value = current.planEnd || "";
+      document.getElementById("mOwner").value = current.owner || "";
+      document.getElementById("mCo").value = current.co || "";
+      document.getElementById("mMoney").value = current.money || "";
+
+      document.getElementById("mName").value = current.name || "";
+      document.getElementById("mResult").value = current.result || "";
+      document.getElementById("mNote").value = current.note || "";
+
+      document.getElementById("mCreated").textContent = current.createdAt || "—";
+      document.getElementById("mUpdated").textContent = current.updatedAt || "—";
+
+      // Delete button disabled for new unsaved
+      document.getElementById("mDelete").disabled = !!tempNewItem;
+
+      modal.classList.add("active");
+    }
+
+    function closeModal(){
+      modal.classList.remove("active");
+      editingId = null;
+      tempNewItem = null;
+    }
+
+    let tempNewItem = null;
+
+    function collectModal(){
+      return {
+        status: document.getElementById("mStatus").value,
+        sectionId: document.getElementById("mSection").value,
+        planStart: document.getElementById("mPlanStart").value,
+        planEnd: document.getElementById("mPlanEnd").value,
+        owner: document.getElementById("mOwner").value.trim(),
+        co: document.getElementById("mCo").value.trim(),
+        money: document.getElementById("mMoney").value.trim(),
+        name: document.getElementById("mName").value.trim(),
+        result: document.getElementById("mResult").value.trim(),
+        note: document.getElementById("mNote").value.trim()
+      };
+    }
+
+    function saveModal(){
+      const data = collectModal();
+
+      if(tempNewItem){
+        Object.assign(tempNewItem, data);
+        tempNewItem.updatedAt = nowISO();
+        if(!tempNewItem.name){
+          alert("Заполните «Заголовок тикета».");
+          return;
+        }
+        if(!tempNewItem.sectionId){
+          alert("Выберите «Раздел».");
+          return;
+        }
+        state.items.push(tempNewItem);
+        tempNewItem = null;
+      } else {
+        const it = byId(state.items, editingId);
+        if(!it) return;
+        Object.assign(it, data);
+        it.updatedAt = nowISO();
+        if(!it.name){
+          alert("Заполните «Заголовок тикета».");
+          return;
+        }
+      }
+
+      save();
+      renderAll();
+      closeModal();
+    }
+
+    function deleteModal(){
+      if(tempNewItem) return;
+      const it = byId(state.items, editingId);
+      if(!it) return;
+      if(!confirm("Удалить карточку?")) return;
+      state.items = state.items.filter(x=>x.id !== it.id);
+      save();
+      renderAll();
+      closeModal();
+    }
+
+    /* =========================
+       Tabs
+    ========================= */
+    function setTab(tab){
+      currentTab = tab;
+      document.querySelectorAll(".tab").forEach(b=>{
+        b.classList.toggle("active", b.dataset.tab === tab);
+      });
+      document.getElementById("viewTable").style.display = (tab==="table") ? "block" : "none";
+      document.getElementById("viewKanban").style.display = (tab==="kanban") ? "block" : "none";
+      document.getElementById("viewGantt").style.display = (tab==="gantt") ? "block" : "none";
+      document.getElementById("panelTitle").textContent =
+        tab==="table" ? "Таблица" : (tab==="kanban" ? "Доски" : "Гант");
+      renderAll();
+    }
+
+    /* =========================
+       Export / Import
+    ========================= */
+    function exportJSON(){
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "roadmap_etalon_reference.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function importJSON(file){
+      file.text().then(text=>{
+        const obj = JSON.parse(text);
+        if(!obj || !obj.dk || !Array.isArray(obj.sections) || !Array.isArray(obj.items)) throw new Error("Неверная структура");
+        state = obj;
+        save();
+        renderAll();
+        alert("Импорт выполнен.");
+      }).catch(err=>{
+        alert("Ошибка импорта: " + err.message);
+      });
+    }
+
+    /* =========================
+       Render all
+    ========================= */
+    function renderAll(){
+      // DK
+      setDKMini();
+      document.getElementById("dkMini").textContent = (state.dk.year || "—");
+
+      renderFilters();
+      renderKPI();
+
+      if(currentTab === "table") renderTable();
+      if(currentTab === "kanban") renderKanban();
+      if(currentTab === "gantt") renderGantt();
+    }
+
+    /* =========================
+       Event wiring
+    ========================= */
+    // Tabs
+    document.querySelectorAll(".tab").forEach(b=>{
+      b.addEventListener("click", ()=> setTab(b.dataset.tab));
+    });
+
+    // Global search
+    document.getElementById("globalSearch").addEventListener("input", ()=>renderAll());
+
+    // Filters
+    ["fStatus","fSection","fOwner"].forEach(id=>{
+      document.getElementById(id).addEventListener("input", ()=>renderAll());
+      document.getElementById(id).addEventListener("change", ()=>renderAll());
+    });
+
+    // DK fields
+    document.getElementById("dkName").addEventListener("input", (e)=>{
+      state.dk.name = e.target.value;
+      save();
+      renderAll();
+    });
+    document.getElementById("dkYear").addEventListener("input", (e)=>{
+      state.dk.year = e.target.value;
+      save();
+      renderAll();
+    });
+
+    // Add section
+    document.getElementById("btnAddSection").addEventListener("click", ()=>{
+      const name = prompt("Наименование раздела:", "Новый раздел");
+      if(!name) return;
+      const order = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
+      state.sections.push({id: uid("sec"), name: name.trim(), order});
+      save();
+      renderAll();
+    });
+
+    // Add item (sidebar) -> open modal NEW
+    document.getElementById("btnAddItem").addEventListener("click", ()=>{
+      if(state.sections.length === 0){
+        alert("Сначала добавьте раздел.");
+        return;
+      }
+      openModal(null);
+    });
+
+    // Kanban plus
+    document.getElementById("kbPlus").addEventListener("click", ()=>{
+      if(state.sections.length === 0){
+        alert("Сначала добавьте раздел.");
+        return;
+      }
+      openModal(null);
+    });
+
+    // Gantt plus
+    document.getElementById("gPlus").addEventListener("click", ()=>{
+      if(state.sections.length === 0){
+        alert("Сначала добавьте раздел.");
+        return;
+      }
+      openModal(null);
+    });
+
+    // Kanban controls
+    ["kbGroupBy","kbShowCanceled"].forEach(id=>{
+      document.getElementById(id).addEventListener("change", ()=>renderAll());
+    });
+
+    // Gantt controls
+    ["gMode","gShowCanceled"].forEach(id=>{
+      document.getElementById(id).addEventListener("change", ()=>renderAll());
+    });
+
+    // Modal controls
+    document.getElementById("mClose").addEventListener("click", closeModal);
+    document.getElementById("mCancel").addEventListener("click", closeModal);
+    document.getElementById("mSave").addEventListener("click", saveModal);
+    document.getElementById("mDelete").addEventListener("click", deleteModal);
+    document.getElementById("modal").addEventListener("click", (e)=>{
+      if(e.target.id === "modal") closeModal();
+    });
+
+    // Demo / clear / export / import
+    document.getElementById("btnDemo").addEventListener("click", ()=>{
+      if(!confirm("Загрузить демо-данные? Текущие данные будут перезаписаны.")) return;
+      state = demo();
+      save();
+      renderAll();
+    });
+
+    document.getElementById("btnClear").addEventListener("click", ()=>{
+      if(!confirm("Очистить все данные?")) return;
+      state = { dk:{name:"Дорожная карта", year:String(new Date().getFullYear())}, sections:[], items:[] };
+      localStorage.removeItem(STORAGE_KEY);
+      save();
+      renderAll();
+    });
+
+    document.getElementById("btnExport").addEventListener("click", exportJSON);
+    document.getElementById("btnImport").addEventListener("click", ()=>{
+      document.getElementById("importFile").click();
+    });
+    document.getElementById("importFile").addEventListener("change", (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      importJSON(f);
+      e.target.value = "";
+    });
+
+    // Expose for inline
+    window.openModal = openModal;
+
+    // Init
+    setTab("table");
+    renderAll();
+  </script>
+</body>
+</html>
