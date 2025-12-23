@@ -231,17 +231,33 @@
     .kbTop .left{display:flex; gap:10px; align-items:end; flex-wrap:wrap}
     .kbTop .right{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 
-    .kbBoard{
+    .kbBoard{display:flex; flex-direction:column; gap:14px;}
+    .kbRow{display:grid; grid-template-columns: 240px 1fr; gap:12px; align-items:start;}
+    .kbRowHead{
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      padding:12px;
+      box-shadow:0 1px 2px rgba(0,0,0,.05);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-height:100%;
+    }
+    .kbRowTitle{font-weight:900; font-size:14px;}
+    .kbRowMeta{font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .kbRowCols{
       display:grid;
-      grid-template-columns: repeat(4, minmax(280px, 1fr));
+      grid-template-columns: repeat(4, minmax(260px, 1fr));
       gap:12px;
       align-items:start;
     }
     @media (max-width: 1300px){
-      .kbBoard{grid-template-columns: repeat(2, minmax(280px, 1fr));}
+      .kbRow{grid-template-columns: 1fr;}
+      .kbRowCols{grid-template-columns: repeat(2, minmax(240px, 1fr));}
     }
     @media (max-width: 800px){
-      .kbBoard{grid-template-columns: 1fr;}
+      .kbRowCols{grid-template-columns: 1fr;}
     }
 
     .kbCol{
@@ -262,6 +278,10 @@
       padding:10px;
       min-height:220px;
       background:var(--grayCol);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      position:relative;
     }
     .kbCol.red .kbColHead{background:var(--red); color:#fff}
     .kbCol.red .kbColBody{background:var(--redSoft)}
@@ -277,12 +297,18 @@
       border-radius:12px;
       background:#fff;
       padding:10px;
-      margin-bottom:10px;
       cursor:grab;
       box-shadow:0 1px 1px rgba(0,0,0,.04);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
     .kbCard:active{cursor:grabbing}
-    .kbTitle{font-weight:900; font-size:13px; margin:0 0 8px 0; line-height:1.25}
+    .kbNumber{font-size:11px; font-weight:800; color:var(--muted); letter-spacing:0.2px; text-transform:uppercase;}
+    .kbTitle{font-weight:900; font-size:13px; margin:0 0 4px 0; line-height:1.25}
+    .kbLine{padding:6px 8px; border-radius:10px; font-size:12px; font-weight:700;}
+    .kbLine.owner{background:var(--greenSoft); color:var(--green);}
+    .kbLine.co{background:#e5e7eb; color:#374151; font-weight:600;}
     .kbMeta{display:flex; gap:8px; flex-wrap:wrap}
     .chip{
       display:inline-flex; align-items:center; gap:6px;
@@ -305,10 +331,17 @@
       background:rgba(37,99,235,.06);
       color:#0b2a8a;
       font-size:12px;
-      margin-bottom:10px;
-      display:none;
+      min-height:44px;
+      display:block;
+      visibility:hidden;
+      position:absolute;
+      inset:10px;
+      pointer-events:none;
+      opacity:0;
+      transition:opacity .1s ease;
+      z-index:2;
     }
-    .kbColBody.dragOver .dropHint{display:block}
+    .kbColBody.dragOver .dropHint{visibility:visible; opacity:1}
 
     /* Gantt */
     .gantt{
@@ -418,8 +451,9 @@
       flex-direction:column;
       max-height:90vh;
     }
-    #itemModal .modalPanel{
+    #itemModal .modalPanel, #modal .modalPanel{
       height:90vh;
+      max-height:90vh;
     }
     .modalHead{
       padding:10px 12px;
@@ -456,7 +490,7 @@
       gap:12px;
       padding:12px;
       background:#fff;
-      overflow:auto;
+      overflow-y:auto;
       flex:1;
       min-height:0;
     }
@@ -498,6 +532,9 @@
       border-top:1px solid var(--border);
       background:var(--panel2);
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      position:sticky;
+      bottom:0;
+      z-index:2;
     }
     .danger{
       background:rgba(220,38,38,.10);
@@ -656,10 +693,10 @@
                 <div class="field" style="margin:0; min-width:220px">
                   <label>Показывать отменённые</label>
                   <select id="kbShowCanceled">
+                    <option value="yes" selected>Да</option>
                     <option value="no">Нет</option>
-                    <option value="yes">Да</option>
                   </select>
-                </div>
+                  </div>
               </div>
               <div class="right">
                 <button class="btn primary" id="kbPlus">+ Карточка</button>
@@ -1204,6 +1241,7 @@
     let currentTab = "table";
     let editingId = null;
     let dragId = null;
+    let dragGroup = null;
     let currentReports = [];
     let currentKpiTargets = [];
     let currentFinalReport = null;
@@ -1637,80 +1675,108 @@
       let items = filteredItems();
       if(!showCanceled) items = items.filter(it=>it.status !== "canceled");
 
-      Columns.forEach(col=>{
-        const colItems = items.filter(it=>it.status === col.key);
-        const colDiv = document.createElement("div");
-        colDiv.className = `kbCol ${col.style}`;
+      const groups = kanbanGroups(items, groupBy);
+      if(!groups.length){
+        board.innerHTML = `<div class="note">Нет карточек для отображения</div>`;
+        return;
+      }
 
-        colDiv.innerHTML = `
-          <div class="kbColHead">
-            <span>${esc(col.label)}</span>
-            <span class="count">${colItems.length}</span>
+      groups.forEach(group=>{
+        const row = document.createElement("div");
+        row.className = "kbRow";
+        row.innerHTML = `
+          <div class="kbRowHead">
+            <div class="kbRowTitle">${esc(group.name)}</div>
+            <div class="kbRowMeta">
+              <span class="pill"><b>${group.items.length}</b> шт.</span>
+            </div>
           </div>
-          <div class="kbColBody" data-col="${col.key}">
-            <div class="dropHint">Отпустите карточку для смены статуса</div>
-          </div>
+          <div class="kbRowCols"></div>
         `;
 
-        const body = colDiv.querySelector(".kbColBody");
-        body.addEventListener("dragover", (e)=>{ e.preventDefault(); body.classList.add("dragOver"); });
-        body.addEventListener("dragleave", ()=> body.classList.remove("dragOver"));
-        body.addEventListener("drop", (e)=>{
-          e.preventDefault();
-          body.classList.remove("dragOver");
-          const targetStatus = body.dataset.col;
-          if(!dragId) return;
-          moveCardToStatus(dragId, targetStatus);
-          dragId = null;
+        const colsWrap = row.querySelector(".kbRowCols");
+
+        Columns.forEach(col=>{
+          const colItems = group.items.filter(it=>it.status === col.key);
+          const colDiv = document.createElement("div");
+          colDiv.className = `kbCol ${col.style}`;
+
+          colDiv.innerHTML = `
+            <div class=\"kbColHead\">
+              <span>${esc(col.label)}</span>
+              <span class=\"count\">${colItems.length}</span>
+            </div>
+            <div class=\"kbColBody\" data-col=\"${col.key}\" data-group=\"${group.key}\">
+              <div class=\"dropHint\">Отпустите карточку для смены статуса</div>
+            </div>
+          `;
+
+          const body = colDiv.querySelector(".kbColBody");
+          body.addEventListener("dragover", (e)=>{
+            if(body.dataset.group && dragGroup && body.dataset.group !== dragGroup) return;
+            e.preventDefault();
+            body.classList.add("dragOver");
+          });
+          body.addEventListener("dragleave", ()=> body.classList.remove("dragOver"));
+          body.addEventListener("drop", (e)=>{
+            e.preventDefault();
+            body.classList.remove("dragOver");
+            const targetStatus = body.dataset.col;
+            if(!dragId) return;
+            if(body.dataset.group && dragGroup && body.dataset.group !== dragGroup){
+              dragId = null;
+              dragGroup = null;
+              return;
+            }
+            moveCardToStatus(dragId, targetStatus);
+            dragId = null;
+            dragGroup = null;
+          });
+
+          colItems.forEach(it=>body.appendChild(kbCardNode(it, group.key)));
+          colsWrap.appendChild(colDiv);
         });
 
-        // Append cards (grouped or flat)
-        if(groupBy === "none"){
-          colItems.forEach(it=>body.appendChild(kbCardNode(it)));
-        } else if(groupBy === "section"){
-          sortedSections().forEach(sec=>{
-            const inLane = colItems.filter(it=>it.sectionId===sec.id);
-            if(!inLane.length) return;
-            body.appendChild(laneNode(sectionDisplayName(sec), inLane));
-          });
-        } else if(groupBy === "owner"){
-          const owners = Array.from(new Set(colItems.map(it => (it.owner||"—").trim() || "—"))).sort((a,b)=>a.localeCompare(b));
-          owners.forEach(owner=>{
-            const inLane = colItems.filter(it => ((it.owner||"—").trim()||"—") === owner);
-            if(!inLane.length) return;
-            body.appendChild(laneNode(owner, inLane));
-          });
-        }
-
-        board.appendChild(colDiv);
+        board.appendChild(row);
       });
     }
 
-    function laneNode(name, items){
-      const wrap = document.createElement("div");
-      wrap.style.marginBottom = "10px";
-      wrap.innerHTML = `
-        <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden; background:#fff;">
-          <div style="padding:8px 10px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#fff 0%, #fafafa 100%); font-weight:900; font-size:12px; display:flex; justify-content:space-between; gap:10px;">
-            <span>${esc(name)}</span>
-            <span class="pill"><b>${items.length}</b></span>
-          </div>
-          <div style="padding:10px"></div>
-        </div>
-      `;
-      const body = wrap.querySelector("div > div:last-child");
-      items.forEach(it=>body.appendChild(kbCardNode(it)));
-      return wrap;
+    function kanbanGroups(items, groupBy){
+      if(groupBy === "section"){
+        return sortedSections().map(sec=>({
+          key: sec.id,
+          name: sectionDisplayName(sec),
+          items: items.filter(it=>it.sectionId===sec.id)
+        })).filter(g=>g.items.length);
+      }
+      if(groupBy === "owner"){
+        const owners = Array.from(new Set(items.map(it => (it.owner||"—").trim() || "—"))).sort((a,b)=>a.localeCompare(b));
+        return owners.map(owner=>({
+          key: `owner-${owner}`,
+          name: owner || "—",
+          items: items.filter(it => ((it.owner||"—").trim()||"—") === owner)
+        })).filter(g=>g.items.length);
+      }
+      return [{key:"all", name:"Все мероприятия", items}];
     }
 
-    function kbCardNode(it){
+    function kbCardNode(it, groupKey){
       const card = document.createElement("div");
       card.className = "kbCard";
       card.draggable = true;
       card.dataset.id = it.id;
+      card.dataset.group = groupKey || "all";
 
       card.addEventListener("dragstart", ()=>{
         dragId = it.id;
+        dragGroup = card.dataset.group;
+        card.classList.add("dragging");
+      });
+      card.addEventListener("dragend", ()=>{
+        dragId = null;
+        dragGroup = null;
+        card.classList.remove("dragging");
+        document.querySelectorAll(".kbColBody.dragOver").forEach(el=>el.classList.remove("dragOver"));
       });
       card.addEventListener("dblclick", ()=> openModal(it.id));
       card.addEventListener("click", (e)=>{
@@ -1725,8 +1791,7 @@
       });
 
       const chips = [];
-      if(it.owner) chips.push(`<span class="chip">${esc(it.owner)}</span>`);
-      if(it.planEnd) chips.push(`<span class="chip muted">${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}</span>`);
+      if(it.planEnd || it.planStart) chips.push(`<span class="chip muted">${esc(it.planStart||"—")} → ${esc(it.planEnd||"—")}</span>`);
       if(it.money) chips.push(`<span class="chip muted">${esc(it.money)}</span>`);
       const rep = reportSummary(it);
       if(rep !== "—") chips.push(`<span class="chip muted">Отчеты: ${esc(rep)}</span>`);
@@ -1734,7 +1799,10 @@
       if(it.status === "canceled") chips.push(`<span class="chip bad">Отменено</span>`);
 
       card.innerHTML = `
+        <div class="kbNumber">${esc(it.number||"—")}</div>
         <div class="kbTitle">${esc(it.name||"—")}</div>
+        <div class="kbLine owner">Ответственный: ${esc(it.owner||"—")}</div>
+        <div class="kbLine co">Соисполнители: ${esc(it.co||"—")}</div>
         <div class="kbMeta">${chips.join("")}</div>
       `;
       return card;
