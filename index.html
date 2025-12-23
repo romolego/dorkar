@@ -532,8 +532,18 @@
             <input type="text" id="dkName" placeholder="Например: ДК цифровизации (2026)" />
           </div>
           <div class="field">
-            <label>Год (для шкалы Ганта)</label>
-            <input type="text" id="dkYear" placeholder="2026" />
+            <label>Период: начало</label>
+            <input type="date" id="dkPeriodStart" />
+          </div>
+
+          <div class="field">
+            <label>Период: конец</label>
+            <input type="date" id="dkPeriodEnd" />
+          </div>
+
+          <div class="field">
+            <label>Ответственный за ДК</label>
+            <input type="text" id="dkOwner" placeholder="Минтруд / ведомство" />
           </div>
 
           <div class="field">
@@ -554,7 +564,12 @@
 
           <div class="field">
             <label>Фильтр: ответственный</label>
-            <input type="text" id="fOwner" placeholder="ФИО / подразделение" />
+            <select id="fOwner"></select>
+          </div>
+
+          <div class="field">
+            <label>Фильтр: соисполнитель</label>
+            <select id="fCo"></select>
           </div>
 
           <div class="btnRow">
@@ -597,6 +612,7 @@
             <table>
               <thead>
                 <tr>
+                  <th style="width:80px">№</th>
                   <th style="width:260px">Заголовок тикета</th>
                   <th style="width:170px">Раздел</th>
                   <th style="width:120px">Статус</th>
@@ -738,6 +754,11 @@
               <label>Финансирование</label>
               <input type="text" id="mMoney" placeholder="например: 10 000 000" />
             </div>
+
+            <div class="field">
+              <label>№ мероприятия (если пусто — автонумерация)</label>
+              <input type="text" id="mNumber" placeholder="1.1" />
+            </div>
           </div>
         </div>
 
@@ -777,6 +798,53 @@
         </div>
         <div class="btnRow">
           <button class="btn danger" id="mDelete">Удалить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="sectionStatsModal">
+    <div class="modalPanel" style="max-width:720px">
+      <div class="modalHead">
+        <div class="modalHeadLeft">
+          <div class="modalIcon">Σ</div>
+          <div class="modalTitle">
+            <strong id="secStatsTitle">Статистика раздела</strong>
+            <span id="secStatsSub">—</span>
+          </div>
+        </div>
+        <button class="modalClose" id="secStatsClose">Закрыть</button>
+      </div>
+      <div class="modalBody" style="grid-template-columns: 1fr">
+        <div class="modalMain">
+          <h4>
+            <span>Сводка</span>
+            <span class="pill" id="secStatsCount">—</span>
+          </h4>
+          <div class="content">
+            <div class="kv" style="grid-template-columns:1fr 1fr">
+              <div class="line"><div class="k">Всего мероприятий</div><div class="v" id="secStatsTotal">—</div></div>
+              <div class="line"><div class="k">Необходимо сделать</div><div class="v" id="secStatsPlanned">—</div></div>
+              <div class="line"><div class="k">В работе</div><div class="v" id="secStatsWork">—</div></div>
+              <div class="line"><div class="k">Готово</div><div class="v" id="secStatsDone">—</div></div>
+              <div class="line"><div class="k">Отменено</div><div class="v" id="secStatsCanceled">—</div></div>
+              <div class="line"><div class="k">Дата начала раздела</div><div class="v" id="secStatsStart">—</div></div>
+              <div class="line"><div class="k">Дата окончания раздела</div><div class="v" id="secStatsEnd">—</div></div>
+              <div class="line"><div class="k">Финансирование</div><div class="v" id="secStatsMoney">—</div></div>
+            </div>
+
+            <div style="height:10px"></div>
+
+            <div class="kv">
+              <div class="line"><div class="k">Ответственные</div><div class="v" id="secStatsOwners" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
+              <div class="line"><div class="k">Соисполнители</div><div class="v" id="secStatsCo" style="display:flex; gap:6px; flex-wrap:wrap"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modalFooter">
+        <div class="btnRow">
+          <button class="btn" id="secStatsClose2">Закрыть</button>
         </div>
       </div>
     </div>
@@ -831,16 +899,17 @@
     function demo(){
       const sec1 = uid("sec"), sec2 = uid("sec");
       return {
-        dk: { name:"Дорожная карта (пример)", year:String(new Date().getFullYear()) },
+        dk: { name:"Дорожная карта (пример)", year:String(new Date().getFullYear()), periodStart: dateOf(1), periodEnd: dateOf(12), owner:"Минтруд" },
         sections: [
-          {id: sec1, name:"1. Организация", order:1},
-          {id: sec2, name:"2. Реализация", order:2},
+          {id: sec1, name:"1. Организация", order:1, createdAt: nowISO()},
+          {id: sec2, name:"2. Реализация", order:2, createdAt: nowISO()},
         ],
         items: [
           {
             id: uid("it"),
             name:"Подготовить проект распоряжения об утверждении ДК",
             sectionId: sec1,
+            number:"1.1",
             status:"work",
             planStart: dateOf(1),
             planEnd: dateOf(2),
@@ -856,6 +925,7 @@
             id: uid("it"),
             name:"Сформировать перечень мероприятий и ожидаемых результатов",
             sectionId: sec1,
+            number:"1.2",
             status:"planned",
             planStart: dateOf(3),
             planEnd: dateOf(4),
@@ -871,6 +941,7 @@
             id: uid("it"),
             name:"Пилот: завести ДК в системе и отработать жизненный цикл",
             sectionId: sec2,
+            number:"2.1",
             status:"planned",
             planStart: dateOf(6),
             planEnd: dateOf(9),
@@ -886,6 +957,7 @@
             id: uid("it"),
             name:"Сформировать отчёт о статусе ДК для руководства",
             sectionId: sec2,
+            number:"2.2",
             status:"done",
             planStart: dateOf(10),
             planEnd: dateOf(10),
@@ -908,6 +980,15 @@
     }
 
     let state = load() || demo();
+    function ensureDefaults(){
+      state.dk = state.dk || {};
+      state.dk.periodStart = state.dk.periodStart || "";
+      state.dk.periodEnd = state.dk.periodEnd || "";
+      state.dk.owner = state.dk.owner || "";
+      state.dk.year = state.dk.year || (state.dk.periodStart ? state.dk.periodStart.slice(0,4) : String(new Date().getFullYear()));
+      state.collapsedSections = state.collapsedSections || {};
+    }
+    ensureDefaults();
 
     /* =========================
        UI state
@@ -922,6 +1003,24 @@
     function esc(s){
       const str = String(s ?? "");
       return str.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+    function parseMoney(v){
+      if(!v || v === "—") return 0;
+      const num = parseFloat(String(v).replace(/[^0-9.,-]/g, '').replace(',', '.'));
+      return isNaN(num) ? 0 : num;
+    }
+    function formatMoney(num){
+      return new Intl.NumberFormat('ru-RU').format(num);
+    }
+    function uniqueList(arr){
+      return Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    }
+    function autoNumberForItem(sectionId, excludeId=null){
+      const secs = sortedSections();
+      const idx = secs.findIndex(s=>s.id===sectionId);
+      const secNum = idx>=0 ? idx+1 : secs.length+1;
+      const count = state.items.filter(x=>x.sectionId===sectionId && x.id!==excludeId).length + 1;
+      return `${secNum}.${count}`;
     }
     function sortedSections(){
       return [...state.sections].sort((a,b)=>(a.order||0)-(b.order||0) || a.name.localeCompare(b.name));
@@ -938,7 +1037,10 @@
       return document.getElementById("fSection").value;
     }
     function filterOwner(){
-      return document.getElementById("fOwner").value.trim().toLowerCase();
+      return document.getElementById("fOwner").value.trim();
+    }
+    function filterCo(){
+      return document.getElementById("fCo").value.trim();
     }
 
     function filteredItems(){
@@ -946,11 +1048,16 @@
       const fs = filterStatus();
       const fsec = filterSection();
       const fo = filterOwner();
+      const fco = filterCo();
 
       return state.items.filter(it=>{
         if(fs && it.status !== fs) return false;
         if(fsec && it.sectionId !== fsec) return false;
-        if(fo && !(it.owner||"").toLowerCase().includes(fo)) return false;
+        if(fo && (it.owner||"") !== fo) return false;
+        if(fco){
+          const coList = (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+          if(!coList.includes(fco)) return false;
+        }
 
         if(q){
           const blob = [it.name,it.result,it.note,it.owner,it.co,it.money].join(" ").toLowerCase();
@@ -961,9 +1068,12 @@
     }
 
     function setDKMini(){
-      document.getElementById("dkMini").textContent = (state.dk.year||"—");
+      const mini = `${state.dk.periodStart||"—"} → ${state.dk.periodEnd||"—"}`;
+      document.getElementById("dkMini").textContent = mini;
       document.getElementById("dkName").value = state.dk.name || "";
-      document.getElementById("dkYear").value = state.dk.year || "";
+      document.getElementById("dkPeriodStart").value = state.dk.periodStart || "";
+      document.getElementById("dkPeriodEnd").value = state.dk.periodEnd || "";
+      document.getElementById("dkOwner").value = state.dk.owner || "";
     }
 
     function renderFilters(){
@@ -996,6 +1106,30 @@
         ms.appendChild(o);
       });
       if([...ms.options].some(o=>o.value===currM)) ms.value = currM;
+
+      const owners = uniqueList(state.items.map(it=> (it.owner||"").trim()).filter(Boolean));
+      const fOwner = document.getElementById("fOwner");
+      const fOwnerCurr = fOwner.value;
+      fOwner.innerHTML = "<option value=''>Все</option>";
+      owners.forEach(o=>{
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        fOwner.appendChild(opt);
+      });
+      if([...fOwner.options].some(o=>o.value===fOwnerCurr)) fOwner.value = fOwnerCurr;
+
+      const coExecs = uniqueList(state.items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)));
+      const fCo = document.getElementById("fCo");
+      const fCoCurr = fCo.value;
+      fCo.innerHTML = "<option value=''>Все</option>";
+      coExecs.forEach(o=>{
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        fCo.appendChild(opt);
+      });
+      if([...fCo.options].some(o=>o.value===fCoCurr)) fCo.value = fCoCurr;
     }
 
     function renderKPI(){
@@ -1004,12 +1138,21 @@
       const by = {planned:0, work:0, done:0, canceled:0};
       items.forEach(it=>{ by[it.status] = (by[it.status]||0)+1; });
 
+      const starts = items.map(it=>it.planStart).filter(Boolean).sort();
+      const ends = items.map(it=>it.planEnd).filter(Boolean).sort();
+      const moneySum = items.reduce((m,it)=> m + parseMoney(it.money), 0);
+      const startDk = starts[0] || "—";
+      const endDk = ends[ends.length-1] || "—";
+
       document.getElementById("kpi").innerHTML =
         `Всего: <b>${total}</b><br>`+
         `Необходимо сделать: <b>${by.planned||0}</b><br>`+
         `В работе: <b>${by.work||0}</b><br>`+
         `Готово: <b>${by.done||0}</b><br>`+
-        `Отменено: <b>${by.canceled||0}</b>`;
+        `Отменено: <b>${by.canceled||0}</b><br>`+
+        `Дата начала ДК: <b>${startDk}</b><br>`+
+        `Дата окончания ДК: <b>${endDk}</b><br>`+
+        `Общее финансирование ДК: <b>${formatMoney(moneySum)}</b>`;
     }
 
     /* =========================
@@ -1024,13 +1167,53 @@
 
       let rows = 0;
       secs.forEach(sec=>{
+        const inSecAll = state.items.filter(x=>x.sectionId===sec.id);
         const inSec = items.filter(x=>x.sectionId===sec.id);
-        if(!inSec.length) return;
+        const collapsed = !!state.collapsedSections[sec.id];
 
         const trS = document.createElement("tr");
         trS.className = "sectionRow";
-        trS.innerHTML = `<td colspan="11">${esc(sec.name)} <span style="color:var(--muted);font-weight:700">(${inSec.length})</span></td>`;
+        trS.innerHTML = `<td colspan="12">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div>${esc(sec.name)} <span style="color:var(--muted);font-weight:700">(${inSecAll.length})</span></div>
+            <div class="rowActions">
+              <button class="btn small" type="button" data-action="toggle">${collapsed?"Развернуть":"Свернуть"}</button>
+              <button class="btn small" type="button" data-action="edit">Редактировать</button>
+              <button class="btn small danger" type="button" data-action="delete">Удалить</button>
+              <button class="btn small" type="button" data-action="stats">Статистика</button>
+            </div>
+          </div>
+        </td>`;
         tbody.appendChild(trS);
+
+        trS.querySelectorAll("button").forEach(btn=>{
+          btn.addEventListener("click",(e)=>{
+            e.stopPropagation();
+            const act = btn.dataset.action;
+            if(act==="toggle"){
+              state.collapsedSections[sec.id] = !collapsed;
+              save();
+              renderAll();
+            } else if(act==="edit"){
+              const newName = prompt("Название раздела", sec.name || "");
+              if(!newName) return;
+              sec.name = newName.trim();
+              save();
+              renderAll();
+            } else if(act==="delete"){
+              if(inSecAll.length && !confirm("Удалить раздел и все мероприятия?")) return;
+              state.sections = state.sections.filter(s=>s.id!==sec.id);
+              state.items = state.items.filter(it=>it.sectionId!==sec.id);
+              delete state.collapsedSections[sec.id];
+              save();
+              renderAll();
+            } else if(act==="stats"){
+              openSectionStats(sec);
+            }
+          });
+        });
+
+        if(collapsed) return;
 
         inSec.sort((a,b)=>(a.planEnd||"").localeCompare(b.planEnd||"") || (a.name||"").localeCompare(b.name||""))
           .forEach(it=>{
@@ -1041,6 +1224,7 @@
               openModal(it.id);
             });
             tr.innerHTML = `
+              <td>${esc(it.number||"—")}</td>
               <td><b>${esc(it.name||"—")}</b></td>
               <td>${esc(sec.name)}</td>
               <td>${esc(Status[it.status]?.label || it.status)}</td>
@@ -1062,6 +1246,41 @@
       });
 
       document.getElementById("rowsCount").textContent = String(rows);
+    }
+
+    function openSectionStats(sec){
+      const modal = document.getElementById("sectionStatsModal");
+      const items = state.items.filter(it=>it.sectionId===sec.id);
+      const counts = {planned:0, work:0, done:0, canceled:0};
+      items.forEach(it=>{ counts[it.status] = (counts[it.status]||0)+1; });
+      const starts = items.map(it=>it.planStart).filter(Boolean).sort();
+      const ends = items.map(it=>it.planEnd).filter(Boolean).sort();
+      const moneySum = items.reduce((m,it)=> m + parseMoney(it.money), 0);
+
+      document.getElementById("secStatsTitle").textContent = "Статистика раздела";
+      document.getElementById("secStatsSub").textContent = sec.name || "—";
+      document.getElementById("secStatsCount").textContent = `${items.length} шт.`;
+      document.getElementById("secStatsTotal").textContent = items.length;
+      document.getElementById("secStatsPlanned").textContent = counts.planned||0;
+      document.getElementById("secStatsWork").textContent = counts.work||0;
+      document.getElementById("secStatsDone").textContent = counts.done||0;
+      document.getElementById("secStatsCanceled").textContent = counts.canceled||0;
+      document.getElementById("secStatsStart").textContent = starts[0] || "—";
+      document.getElementById("secStatsEnd").textContent = ends[ends.length-1] || "—";
+      document.getElementById("secStatsMoney").textContent = items.length ? formatMoney(moneySum) : "—";
+
+      const owners = uniqueList(items.map(it=>(it.owner||"").trim()).filter(Boolean));
+      const coExecs = uniqueList(items.flatMap(it=> (it.co||"").split(/[;,]/).map(x=>x.trim()).filter(Boolean)));
+      const ownersBox = document.getElementById("secStatsOwners");
+      const coBox = document.getElementById("secStatsCo");
+      ownersBox.innerHTML = owners.length ? owners.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
+      coBox.innerHTML = coExecs.length ? coExecs.map(o=>`<span class="chip">${esc(o)}</span>`).join("") : "—";
+
+      modal.classList.add("active");
+    }
+
+    function closeSectionStats(){
+      document.getElementById("sectionStatsModal").classList.remove("active");
     }
 
     /* =========================
@@ -1332,6 +1551,7 @@
           money:"",
           result:"",
           note:"",
+          number:"",
           createdAt: nowISO(),
           updatedAt: nowISO()
         };
@@ -1356,6 +1576,7 @@
       document.getElementById("mOwner").value = current.owner || "";
       document.getElementById("mCo").value = current.co || "";
       document.getElementById("mMoney").value = current.money || "";
+      document.getElementById("mNumber").value = current.number || "";
 
       document.getElementById("mName").value = current.name || "";
       document.getElementById("mResult").value = current.result || "";
@@ -1387,6 +1608,7 @@
         owner: document.getElementById("mOwner").value.trim(),
         co: document.getElementById("mCo").value.trim(),
         money: document.getElementById("mMoney").value.trim(),
+        number: document.getElementById("mNumber").value.trim(),
         name: document.getElementById("mName").value.trim(),
         result: document.getElementById("mResult").value.trim(),
         note: document.getElementById("mNote").value.trim()
@@ -1399,6 +1621,9 @@
       if(tempNewItem){
         Object.assign(tempNewItem, data);
         tempNewItem.updatedAt = nowISO();
+        if(!tempNewItem.number){
+          tempNewItem.number = autoNumberForItem(tempNewItem.sectionId);
+        }
         if(!tempNewItem.name){
           alert("Заполните «Заголовок тикета».");
           return;
@@ -1413,6 +1638,9 @@
         const it = byId(state.items, editingId);
         if(!it) return;
         Object.assign(it, data);
+        if(!it.number){
+          it.number = autoNumberForItem(it.sectionId, it.id);
+        }
         it.updatedAt = nowISO();
         if(!it.name){
           alert("Заполните «Заголовок тикета».");
@@ -1480,9 +1708,9 @@
        Render all
     ========================= */
     function renderAll(){
+      ensureDefaults();
       // DK
       setDKMini();
-      document.getElementById("dkMini").textContent = (state.dk.year || "—");
 
       renderFilters();
       renderKPI();
@@ -1504,7 +1732,7 @@
     document.getElementById("globalSearch").addEventListener("input", ()=>renderAll());
 
     // Filters
-    ["fStatus","fSection","fOwner"].forEach(id=>{
+    ["fStatus","fSection","fOwner","fCo"].forEach(id=>{
       document.getElementById(id).addEventListener("input", ()=>renderAll());
       document.getElementById(id).addEventListener("change", ()=>renderAll());
     });
@@ -1515,8 +1743,19 @@
       save();
       renderAll();
     });
-    document.getElementById("dkYear").addEventListener("input", (e)=>{
-      state.dk.year = e.target.value;
+    document.getElementById("dkPeriodStart").addEventListener("input", (e)=>{
+      state.dk.periodStart = e.target.value;
+      if(!state.dk.year && e.target.value) state.dk.year = e.target.value.slice(0,4);
+      save();
+      renderAll();
+    });
+    document.getElementById("dkPeriodEnd").addEventListener("input", (e)=>{
+      state.dk.periodEnd = e.target.value;
+      save();
+      renderAll();
+    });
+    document.getElementById("dkOwner").addEventListener("input", (e)=>{
+      state.dk.owner = e.target.value;
       save();
       renderAll();
     });
@@ -1526,7 +1765,7 @@
       const name = prompt("Наименование раздела:", "Новый раздел");
       if(!name) return;
       const order = (state.sections.reduce((m,s)=>Math.max(m, s.order||0), 0) || 0) + 1;
-      state.sections.push({id: uid("sec"), name: name.trim(), order});
+      state.sections.push({id: uid("sec"), name: name.trim(), order, createdAt: nowISO()});
       save();
       renderAll();
     });
@@ -1576,6 +1815,12 @@
     document.getElementById("modal").addEventListener("click", (e)=>{
       if(e.target.id === "modal") closeModal();
     });
+    document.getElementById("sectionStatsModal").addEventListener("click", (e)=>{
+      if(e.target.id === "sectionStatsModal") closeSectionStats();
+    });
+    ["secStatsClose","secStatsClose2"].forEach(id=>{
+      document.getElementById(id).addEventListener("click", closeSectionStats);
+    });
 
     // Demo / clear / export / import
     document.getElementById("btnDemo").addEventListener("click", ()=>{
@@ -1587,7 +1832,7 @@
 
     document.getElementById("btnClear").addEventListener("click", ()=>{
       if(!confirm("Очистить все данные?")) return;
-      state = { dk:{name:"Дорожная карта", year:String(new Date().getFullYear())}, sections:[], items:[] };
+      state = { dk:{name:"Дорожная карта", year:String(new Date().getFullYear()), periodStart:"", periodEnd:"", owner:""}, sections:[], items:[], collapsedSections:{} };
       localStorage.removeItem(STORAGE_KEY);
       save();
       renderAll();
