@@ -414,6 +414,9 @@
       border:1px solid var(--border);
       box-shadow:0 16px 40px rgba(0,0,0,.22);
       overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      max-height:90vh;
     }
     .modalHead{
       padding:10px 12px;
@@ -450,6 +453,9 @@
       gap:12px;
       padding:12px;
       background:#fff;
+      overflow:auto;
+      flex:1;
+      min-height:0;
     }
     @media (max-width: 1000px){
       .modalBody{grid-template-columns:1fr}
@@ -781,6 +787,11 @@
             </div>
 
             <div class="field">
+              <label>Примечание</label>
+              <textarea id="mNote" placeholder="Доп. условия / риски / ссылки"></textarea>
+            </div>
+
+            <div class="field">
               <label>Целевой показатель</label>
               <div class="kv" style="grid-template-columns: 1fr 1fr 1fr">
                 <div class="line" style="display:block">
@@ -835,14 +846,10 @@
             </div>
 
             <div class="field">
-              <label>Примечание</label>
-              <textarea id="mNote" placeholder="Доп. условия / риски / ссылки"></textarea>
-            </div>
-
-            <div class="field">
               <label>Отчеты</label>
-              <div class="btnRow" style="margin-bottom:8px">
+              <div class="btnRow" style="margin-bottom:8px; justify-content:space-between; gap:8px">
                 <button class="btn small primary" type="button" id="addReportBtn">+ Добавить промежуточный отчет</button>
+                <button class="btn small" type="button" id="reportsToggle" style="display:none">Свернуть</button>
               </div>
               <div id="reportsList" class="note"></div>
               <div id="reportForm" style="margin-top:10px; display:none; border:1px solid var(--border); padding:10px; border-radius:10px; background:var(--panel2)">
@@ -1035,6 +1042,14 @@
       const d = new Date();
       return d.toISOString().slice(0,19).replace("T"," ");
     }
+    function todayDate(){
+      return new Date().toISOString().slice(0,10);
+    }
+    function setDefaultDate(input){
+      if(input && !input.value){
+        input.value = todayDate();
+      }
+    }
     function save(){
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -1186,6 +1201,8 @@
       const ends = state.items.map(it=>it.planEnd).filter(Boolean).sort();
       if(!state.dk.periodStart && starts.length) state.dk.periodStart = starts[0];
       if(!state.dk.periodEnd && ends.length) state.dk.periodEnd = ends[ends.length-1];
+      if(!state.dk.periodStart) state.dk.periodStart = todayDate();
+      if(!state.dk.periodEnd) state.dk.periodEnd = todayDate();
     }
     ensureDefaults();
 
@@ -1201,6 +1218,7 @@
     let editingReportId = null;
     let editingKpiTargetId = null;
     let kpiTargetsCollapsed = false;
+    let reportsCollapsed = false;
     let editingSectionId = null;
 
     /* =========================
@@ -1320,8 +1338,12 @@
       const dkMini = document.getElementById("dkMini");
       if(dkMini) dkMini.textContent = mini;
       document.getElementById("dkName").value = state.dk.name || "";
-      document.getElementById("dkPeriodStart").value = state.dk.periodStart || "";
-      document.getElementById("dkPeriodEnd").value = state.dk.periodEnd || "";
+      const dkStartInput = document.getElementById("dkPeriodStart");
+      const dkEndInput = document.getElementById("dkPeriodEnd");
+      dkStartInput.value = state.dk.periodStart || "";
+      dkEndInput.value = state.dk.periodEnd || "";
+      setDefaultDate(dkStartInput);
+      setDefaultDate(dkEndInput);
       document.getElementById("dkOwner").value = state.dk.owner || "";
       document.getElementById("dkApprovedBy").value = state.dk.approvedBy || "";
       document.getElementById("dkApprovedDoc").value = state.dk.approvedDoc || "";
@@ -1422,9 +1444,9 @@
               <div>${esc(sectionDisplayName(sec))}</div>
             </div>
             <div class="rowActions">
-              <button class="btn small" type="button" data-action="stats">Статистика</button>
               <button class="btn small" type="button" data-action="edit">✏</button>
               <button class="btn small danger" type="button" data-action="delete">🗑</button>
+              <button class="btn small" type="button" data-action="stats">Статистика</button>
               <button class="btn small" type="button" data-action="toggle">${collapsed?"Развернуть":"Свернуть"}</button>
             </div>
           </div>
@@ -1864,15 +1886,25 @@
 
     function resetReportForm(){
       editingReportId = null;
-      document.getElementById("reportDate").value = "";
+      const reportDate = document.getElementById("reportDate");
+      reportDate.value = "";
+      setDefaultDate(reportDate);
       document.getElementById("reportPeriod").value = "";
       document.getElementById("reportText").value = "";
     }
     function renderReportsUI(){
       const box = document.getElementById("reportsList");
+      const toggle = document.getElementById("reportsToggle");
+      toggle.style.display = currentReports.length ? "inline-flex" : "none";
+      toggle.textContent = reportsCollapsed ? "Развернуть" : "Свернуть";
       box.innerHTML = "";
       if(!currentReports.length){
         box.textContent = "Промежуточных отчетов нет";
+        return;
+      }
+      if(reportsCollapsed){
+        document.getElementById("reportForm").style.display = "none";
+        box.textContent = `Записей: ${currentReports.length}`;
         return;
       }
       const sorted = [...currentReports].sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.period||"").localeCompare(b.period||""));
@@ -1895,7 +1927,9 @@
         </div>`;
         row.querySelector('[data-action="edit"]').addEventListener("click", ()=>{
           editingReportId = rep.id;
-          document.getElementById("reportDate").value = rep.date || "";
+          const reportDate = document.getElementById("reportDate");
+          reportDate.value = rep.date || "";
+          setDefaultDate(reportDate);
           document.getElementById("reportPeriod").value = rep.period || "";
           document.getElementById("reportText").value = rep.text || "";
           document.getElementById("reportForm").style.display = "block";
@@ -1934,7 +1968,9 @@
       editingKpiTargetId = null;
       document.getElementById("kpiTargetPeriod").value = "";
       document.getElementById("kpiTargetValue").value = "";
-      document.getElementById("kpiTargetFactDate").value = "";
+      const factDate = document.getElementById("kpiTargetFactDate");
+      factDate.value = "";
+      setDefaultDate(factDate);
       document.getElementById("kpiTargetFactValue").value = "";
     }
     function hideKpiTargetForm(){
@@ -1944,13 +1980,14 @@
     function renderKpiTargetsUI(){
       const box = document.getElementById("kpiTargetsList");
       const toggle = document.getElementById("kpiToggleTargets");
-      toggle.style.display = currentKpiTargets.length > 1 ? "inline-flex" : "none";
+      toggle.style.display = currentKpiTargets.length > 0 ? "inline-flex" : "none";
       toggle.textContent = kpiTargetsCollapsed ? "Развернуть" : "Свернуть";
       if(!currentKpiTargets.length){
         box.textContent = "Целевые значения не добавлены";
         return;
       }
       if(kpiTargetsCollapsed){
+        document.getElementById("kpiTargetForm").style.display = "none";
         box.textContent = `Записей: ${currentKpiTargets.length}`;
         return;
       }
@@ -1977,7 +2014,9 @@
           editingKpiTargetId = t.id;
           document.getElementById("kpiTargetPeriod").value = t.period || "";
           document.getElementById("kpiTargetValue").value = t.value || "";
-          document.getElementById("kpiTargetFactDate").value = t.factDate || "";
+          const factDate = document.getElementById("kpiTargetFactDate");
+          factDate.value = t.factDate || "";
+          setDefaultDate(factDate);
           document.getElementById("kpiTargetFactValue").value = t.factValue || "";
           document.getElementById("kpiTargetForm").style.display = "block";
         });
@@ -2042,7 +2081,9 @@
     }
 
     function openFinalForm(){
-      document.getElementById("finalDate").value = currentFinalReport?.date || "";
+      const finalDate = document.getElementById("finalDate");
+      finalDate.value = currentFinalReport?.date || "";
+      setDefaultDate(finalDate);
       document.getElementById("finalPeriod").value = currentFinalReport?.period || "";
       document.getElementById("finalText").value = currentFinalReport?.text || "";
       document.getElementById("finalReportForm").style.display = "block";
@@ -2082,8 +2123,8 @@
           name:"",
           sectionId: secId,
           status:"planned",
-          planStart:"",
-          planEnd:"",
+          planStart:todayDate(),
+          planEnd:todayDate(),
           owner:"",
           co:"",
           money:"",
@@ -2112,8 +2153,12 @@
 
       document.getElementById("mStatus").value = current.status;
       document.getElementById("mSection").value = current.sectionId || "";
-      document.getElementById("mPlanStart").value = current.planStart || "";
-      document.getElementById("mPlanEnd").value = current.planEnd || "";
+      const mPlanStart = document.getElementById("mPlanStart");
+      const mPlanEnd = document.getElementById("mPlanEnd");
+      mPlanStart.value = current.planStart || "";
+      mPlanEnd.value = current.planEnd || "";
+      setDefaultDate(mPlanStart);
+      setDefaultDate(mPlanEnd);
       document.getElementById("mOwner").value = current.owner || "";
       document.getElementById("mCo").value = current.co || "";
       document.getElementById("mMoney").value = current.money || "";
@@ -2137,6 +2182,7 @@
       renderReportsUI();
       hideKpiTargetForm();
       kpiTargetsCollapsed = false;
+      reportsCollapsed = false;
       renderKpiTargetsUI();
       renderFinalReportView();
 
@@ -2158,6 +2204,7 @@
       editingReportId = null;
       editingKpiTargetId = null;
       kpiTargetsCollapsed = false;
+      reportsCollapsed = false;
     }
 
     let tempNewItem = null;
@@ -2396,6 +2443,10 @@
     });
     document.getElementById("reportSave").addEventListener("click", saveReportForm);
     document.getElementById("reportCancel").addEventListener("click", hideReportForm);
+    document.getElementById("reportsToggle").addEventListener("click", ()=>{
+      reportsCollapsed = !reportsCollapsed;
+      renderReportsUI();
+    });
     document.getElementById("kpiAddTarget").addEventListener("click", ()=>{
       resetKpiTargetForm();
       document.getElementById("kpiTargetForm").style.display = "block";
