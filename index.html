@@ -440,8 +440,8 @@
     }
     .bar{
       position:absolute;
-      top:6px;
-      bottom:6px;
+      top:0;
+      bottom:0;
       border-radius:10px;
       padding:8px 10px;
       display:flex;
@@ -456,12 +456,12 @@
       border:1px solid rgba(37,99,235,.35);
       background:rgba(37,99,235,.15);
       color:#0b2a8a;
-      cursor:grab;
-      max-height:calc(100% - 12px);
+      cursor:pointer;
+      max-height:100%;
     }
     .bar.disabled{cursor:default; border-style:dashed;}
     .bar.disabled .handle{display:none;}
-    .bar:active{cursor:grabbing}
+    .bar.disabled .moveHandle{display:none;}
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
@@ -469,7 +469,7 @@
     .bar .handle{
       position:absolute;
       top:0; bottom:0;
-      width:10px;
+      width:18px;
       cursor:ew-resize;
       z-index:3;
       opacity:.9;
@@ -477,10 +477,29 @@
       border-left:1px solid rgba(37,99,235,.35);
       border-right:1px solid rgba(37,99,235,.35);
     }
-    .bar .handle.left{left:0;}
-    .bar .handle.right{right:0;}
-    .bar .dragArea{z-index:2;}
+    .bar .handle.left{left:-6px; border-radius:8px 0 0 8px;}
+    .bar .handle.right{right:-6px; border-radius:0 8px 8px 0;}
     .bar .barLabel{position:relative; z-index:1;}
+    .bar .moveHandle{
+      position:absolute;
+      top:-10px;
+      right:-10px;
+      width:20px;
+      height:20px;
+      border-radius:7px;
+      border:1px solid rgba(37,99,235,.45);
+      background:#fff;
+      color:#0b2a8a;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:grab;
+      z-index:4;
+      box-shadow:0 2px 6px rgba(15,23,42,.15);
+      user-select:none;
+    }
+    .bar .moveHandle:active{cursor:grabbing;}
     .statusBadge{
       display:inline-flex;
       align-items:center;
@@ -539,19 +558,12 @@
       border:1px solid var(--border);
       border-radius:12px;
       overflow:hidden;
-      padding:6px 0;
+      padding:0;
       display:flex;
       align-items:stretch;
     }
     .gLeft .dates{font-size:12px; color:var(--muted); white-space:nowrap;}
     .gLeft .titleWrap{flex:1; min-width:0; word-break:break-word;}
-    .bar .dragArea{
-      position:absolute;
-      inset:6px 14px;
-      cursor:grab;
-      border-radius:8px;
-    }
-    .bar.tinyBar .dragArea{inset:6px 10px;}
 
     /* Modal (Etalon-like) */
     .modal{
@@ -2034,21 +2046,24 @@
     /* =========================
        Gantt (interactive)
     ========================= */
-    let ganttDrag = null;
-    let ganttDragging = false;
+    const GANTT_STATE = {
+      IDLE: "IDLE",
+      PENDING_CLICK: "PENDING_CLICK",
+      DRAG_MOVE: "DRAG_MOVE",
+      DRAG_RESIZE_START: "DRAG_RESIZE_START",
+      DRAG_RESIZE_END: "DRAG_RESIZE_END",
+    };
+    const GANTT_DRAG_THRESHOLD = 4;
+    const GANTT_DAY_STEP = 1;
     let ganttPending = new Map();
     let ganttOrder = [];
-    let ganttUndoStack = [];
-    let ganttUndoCheckpoint = null;
+    let ganttHistory = {past: [], future: []};
     let ganttEditable = false;
     let ganttSortMode = "date";
     let ganttJustDragged = false;
     let ganttDragFrame = null;
-    const GANTT_DRAG_THRESHOLD = 5;
-    const GANTT_TINY_HANDLE_WIDTH = 16;
-    const GANTT_HANDLE_WIDTH = 10;
-    const GANTT_DRAG_PADDING = 6;
-    const GANTT_MIN_DRAG_HIT_WIDTH = 24;
+    let ganttInteraction = {state: GANTT_STATE.IDLE};
+    let ganttHistoryCheckpoint = null;
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -2058,6 +2073,28 @@
     };
     function clonePendingMap(src){
       return new Map(Array.from(src.entries()).map(([id,val])=>[id,{...val}]));
+    }
+    function snapshotPending(){
+      return clonePendingMap(ganttPending);
+    }
+    function snapshotItems(){
+      return new Map(state.items.map(it=>[it.id,{planStart: it.planStart || "", planEnd: it.planEnd || ""}]));
+    }
+    function pushHistory(entry){
+      ganttHistory.past.push(entry);
+      ganttHistory.future = [];
+    }
+    function restoreHistory(entry){
+      if(entry.items){
+        entry.items.forEach((dates, id)=>{
+          const item = byId(state.items, id);
+          if(!item) return;
+          item.planStart = dates.planStart;
+          item.planEnd = dates.planEnd;
+        });
+        save();
+      }
+      ganttPending = clonePendingMap(entry.pending || new Map());
     }
     function hasPendingChanges(){
       return ganttPending.size > 0;
@@ -2083,10 +2120,11 @@
         ganttPending.set(id, {planStart: start, planEnd: end});
       }
     }
-    function resetPending(){
+    function clearPending(){
       ganttPending.clear();
-      ganttUndoStack = [];
-      ganttUndoCheckpoint = null;
+    }
+    function resetHistory(){
+      ganttHistory = {past: [], future: []};
     }
     function refreshGanttActions(){
       const has = hasPendingChanges();
@@ -2125,6 +2163,52 @@
     }
     function diffDays(a,b){
       return Math.round((b.getTime()-a.getTime())/(1000*60*60*24));
+    }
+    function isGanttDragging(){
+      return [
+        GANTT_STATE.DRAG_MOVE,
+        GANTT_STATE.DRAG_RESIZE_START,
+        GANTT_STATE.DRAG_RESIZE_END,
+      ].includes(ganttInteraction.state);
+    }
+    function totalTimelineDays(timeline){
+      return Math.max(1, diffDays(timeline.start, timeline.end)+1);
+    }
+    function pxPerDay(timeline){
+      return timeline.totalWidth / totalTimelineDays(timeline);
+    }
+    function calcDeltaDays(deltaPx, timeline){
+      const raw = deltaPx / pxPerDay(timeline);
+      return Math.round(raw / GANTT_DAY_STEP) * GANTT_DAY_STEP;
+    }
+    function clampShift(shift, minShift, maxShift){
+      return Math.min(Math.max(shift, minShift), maxShift);
+    }
+    function computeDragDates(type, initialStart, initialEnd, deltaDays, timeline){
+      if(type === GANTT_STATE.DRAG_MOVE){
+        const minShift = -diffDays(timeline.start, initialStart);
+        const maxShift = diffDays(timeline.end, initialEnd);
+        const shift = clampShift(deltaDays, minShift, maxShift);
+        return {start: addDays(initialStart, shift), end: addDays(initialEnd, shift)};
+      }
+      if(type === GANTT_STATE.DRAG_RESIZE_START){
+        const proposedStart = addDays(initialStart, deltaDays);
+        const clampedStart = clampDate(proposedStart, timeline.start, initialEnd);
+        return {start: clampedStart, end: initialEnd};
+      }
+      const proposedEnd = addDays(initialEnd, deltaDays);
+      const clampedEnd = clampDate(proposedEnd, initialStart, timeline.end);
+      return {start: initialStart, end: clampedEnd};
+    }
+    function suppressNextClick(){
+      ganttJustDragged = true;
+      const handler = (evt)=>{
+        evt.preventDefault();
+        evt.stopPropagation();
+        ganttJustDragged = false;
+        document.removeEventListener("click", handler, true);
+      };
+      document.addEventListener("click", handler, true);
     }
     function monthDays(y,m){
       return new Date(Date.UTC(y,m,0)).getUTCDate();
@@ -2345,7 +2429,7 @@
           </div>
         `;
         l.addEventListener("click", (e)=>{
-          if(ganttDragging || ganttJustDragged){
+          if(isGanttDragging() || ganttJustDragged){
             e.preventDefault();
             e.stopPropagation();
             ganttJustDragged = false;
@@ -2370,12 +2454,13 @@
         barRow.appendChild(bar);
         r.appendChild(barRow);
         r.addEventListener("click", (e)=>{
-          if(ganttDragging || ganttJustDragged){
+          if(ganttJustDragged){
             e.preventDefault();
             e.stopPropagation();
             ganttJustDragged = false;
             return;
           }
+          if(e.target.closest(".bar")) return;
           openModal(it.id);
         });
 
@@ -2412,17 +2497,6 @@
       bar.dataset.end = newEndStr;
       const label = bar.querySelector('.barLabel');
       if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-      const dragArea = bar.querySelector('.dragArea');
-      if(dragArea){
-        const availableWidth = Math.max(pos.width - GANTT_HANDLE_WIDTH*2, GANTT_MIN_DRAG_HIT_WIDTH);
-        const left = Math.max(GANTT_DRAG_PADDING, (pos.width - availableWidth)/2);
-        dragArea.style.top = `${GANTT_DRAG_PADDING}px`;
-        dragArea.style.bottom = `${GANTT_DRAG_PADDING}px`;
-        dragArea.style.left = `${left}px`;
-        dragArea.style.right = "auto";
-        dragArea.style.width = `${availableWidth}px`;
-      }
-      bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
     }
 
     function buildBar(it, timeline, secColor){
@@ -2448,67 +2522,62 @@
 
       const start = parseISODate(s);
       const end = parseISODate(e);
-      const snap = 1;
-
-      function startDrag(type, ev){
-        if(!ganttEditable || ev.button !== 0) return;
-        if(type === "move" && !ev.target.closest('.dragArea')) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        const currentStart = parseISODate(bar.dataset.start || s) || start;
-        const currentEnd = parseISODate(bar.dataset.end || e) || end;
-        ganttUndoCheckpoint = clonePendingMap(ganttPending);
-        ganttDragging = true;
-        ganttJustDragged = false;
-        ganttDrag = {
-          id: it.id,
-          type,
-          initialX: ev.clientX,
-          initialStart: currentStart,
-          initialEnd: currentEnd,
-          snap,
-          timeline,
-          moved: false,
-          clickSuppressed: false
-        };
-        document.addEventListener("mousemove", onDragMove);
-        document.addEventListener("mouseup", onDragEnd, {once:true});
-      }
 
       bar.style.borderColor = secColor;
 
-      bar.innerHTML = `<div class="handle left resizeHandle" data-side="start"></div><div class="handle right resizeHandle" data-side="end"></div><div class="dragArea" data-role="move"></div><span class="barLabel">${esc(s)} → ${esc(e)}</span>`;
+      bar.innerHTML = `
+        <div class="handle left barHandle" data-role="resize-start"></div>
+        <div class="handle right barHandle" data-role="resize-end"></div>
+        <button class="moveHandle" type="button" aria-label="Переместить полосу">↔</button>
+        <span class="barLabel">${esc(s)} → ${esc(e)}</span>
+      `;
 
       setBarGeometry(bar, timeline, start, end);
 
       if(!ganttEditable){
         bar.classList.add("disabled");
-        return bar;
       }
 
-      bar.querySelectorAll(".resizeHandle").forEach(h=>{
-        h.addEventListener("mousedown", (ev)=>startDrag(h.dataset.side, ev));
+      bar.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
       });
-      const dragArea = bar.querySelector('.dragArea');
-      if(dragArea){
-        dragArea.addEventListener('mousedown', (ev)=>startDrag('move', ev));
+
+      bar.addEventListener("pointerdown", (ev)=>{
+        if(ev.button !== 0) return;
+        if(ev.target.closest(".barHandle") || ev.target.closest(".moveHandle")) return;
+        startBarClick(ev, bar, it.id);
+      });
+
+      if(ganttEditable){
+        bar.querySelectorAll(".barHandle").forEach(handle=>{
+          handle.addEventListener("pointerdown", (ev)=>{
+            ev.preventDefault();
+            ev.stopPropagation();
+            startDragInteraction(ev, bar, it.id, handle.dataset.role, timeline);
+          });
+        });
+        const moveHandle = bar.querySelector(".moveHandle");
+        if(moveHandle){
+          moveHandle.addEventListener("pointerdown", (ev)=>{
+            ev.preventDefault();
+            ev.stopPropagation();
+            startDragInteraction(ev, bar, it.id, "move", timeline);
+          });
+          moveHandle.addEventListener("click", (ev)=>{
+            ev.preventDefault();
+            ev.stopPropagation();
+          });
+        }
       }
       return bar;
     }
 
     function positionFromDates(start, end, timeline){
-      const s = start < timeline.start ? timeline.start : start;
-      const e = end > timeline.end ? timeline.end : end;
-      const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
-      const pxPerDay = timeline.totalWidth / totalDays;
+      const s = clampDate(start, timeline.start, timeline.end);
+      const e = clampDate(end, timeline.start, timeline.end);
       const leftDays = Math.max(0, diffDays(timeline.start, s));
       const widthDays = Math.max(1, diffDays(s, e)+1);
-      return {left: leftDays * pxPerDay, width: widthDays * pxPerDay};
-    }
-
-    function snapDate(base, deltaDays, snap){
-      const snapped = Math.round(deltaDays / snap) * snap;
-      return addDays(base, snapped);
+      return {left: leftDays * pxPerDay(timeline), width: widthDays * pxPerDay(timeline)};
     }
 
     function updateLeftDates(id, startStr, endStr){
@@ -2516,92 +2585,154 @@
       if(datesEl) datesEl.textContent = `${startStr} → ${endStr}`;
     }
 
-    function applyDragPreview(){
-      if(!ganttDrag || !ganttDrag.preview) return;
-      const {timeline, id, preview} = ganttDrag;
-      const {newStart, newEnd} = preview;
-      const newStartStr = toISODate(newStart);
-      const newEndStr = toISODate(newEnd);
-      setPendingDates(id, newStartStr, newEndStr);
-      const bar = document.querySelector(`.bar[data-id='${id}']`);
-      if(bar){
-        setBarGeometry(bar, timeline, newStart, newEnd);
-      }
-      updateLeftDates(id, newStartStr, newEndStr);
+    function applyInteractionPreview(){
+      if(!ganttInteraction.preview) return;
+      const {bar, timeline, itemId, preview} = ganttInteraction;
+      const newStartStr = toISODate(preview.start);
+      const newEndStr = toISODate(preview.end);
+      setPendingDates(itemId, newStartStr, newEndStr);
+      setBarGeometry(bar, timeline, preview.start, preview.end);
+      updateLeftDates(itemId, newStartStr, newEndStr);
       refreshGanttActions();
     }
 
-    function queueDragPreview(){
+    function queueInteractionPreview(){
       if(ganttDragFrame) return;
       ganttDragFrame = requestAnimationFrame(()=>{
         ganttDragFrame = null;
-        applyDragPreview();
+        applyInteractionPreview();
       });
     }
 
-    function onDragMove(ev){
-      if(!ganttDrag) return;
-      const {type, initialX, initialStart, initialEnd, snap, timeline} = ganttDrag;
-      const deltaPx = ev.clientX - initialX;
-      if(type === "move" && !ganttDrag.moved && Math.abs(deltaPx) <= GANTT_DRAG_THRESHOLD){
-        return;
-      }
-      const totalDays = Math.max(1, diffDays(timeline.start, timeline.end)+1);
-      const pxPerDay = timeline.totalWidth / totalDays;
-      const deltaDaysRaw = deltaPx / pxPerDay;
-      const deltaDays = Math.round(deltaDaysRaw / snap) * snap;
-      if(!ganttDrag.moved && (type !== "move" || Math.abs(deltaPx) > GANTT_DRAG_THRESHOLD)){
-        ganttDrag.moved = true;
-        if(type === "move" && !ganttDrag.clickSuppressed){
-          ganttDrag.clickSuppressed = true;
-          ganttDrag.suppressClick = (evt)=>{
-            evt.preventDefault();
-            evt.stopPropagation();
-          };
-          document.addEventListener("click", ganttDrag.suppressClick, true);
-        }
-      }
-      if(type !== "move" && deltaDays === 0) return;
-      let newStart = initialStart;
-      let newEnd = initialEnd;
-      if(type === "move"){
-        const minShift = -diffDays(timeline.start, initialStart);
-        const maxShift = diffDays(timeline.end, initialEnd);
-        const shift = Math.min(Math.max(deltaDays, minShift), maxShift);
-        newStart = addDays(initialStart, shift);
-        newEnd = addDays(initialEnd, shift);
-      } else if(type === "start"){
-        const proposedStart = addDays(initialStart, deltaDays);
-        newStart = clampDate(proposedStart, timeline.start, timeline.end);
-        if(newStart > newEnd) newStart = newEnd;
-      } else if(type === "end"){
-        const proposedEnd = addDays(initialEnd, deltaDays);
-        newEnd = clampDate(proposedEnd, timeline.start, timeline.end);
-        if(newEnd < newStart) newEnd = newStart;
-      }
-      ganttDrag.preview = {newStart, newEnd};
-      queueDragPreview();
+    function startBarClick(ev, bar, itemId){
+      if(ganttInteraction.state !== GANTT_STATE.IDLE) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      ganttInteraction = {
+        state: GANTT_STATE.PENDING_CLICK,
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        bar,
+        itemId,
+        target: ev.currentTarget,
+        dragged: false,
+      };
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      ev.currentTarget.addEventListener("pointermove", onPointerMove);
+      ev.currentTarget.addEventListener("pointerup", onPointerUp);
+      ev.currentTarget.addEventListener("pointercancel", onPointerCancel);
     }
 
-    function onDragEnd(){
-      if(!ganttDrag) return;
-      const {id, preview, suppressClick} = ganttDrag;
-      document.removeEventListener("mousemove", onDragMove);
-      if(suppressClick){
-        document.removeEventListener("click", suppressClick, true);
+    function startDragInteraction(ev, bar, itemId, role, timeline){
+      if(!ganttEditable) return;
+      const item = byId(state.items, itemId);
+      if(!item) return;
+      const dates = workingDates(item);
+      const currentStart = parseISODate(bar.dataset.start) || parseISODate(dates.planStart);
+      const currentEnd = parseISODate(bar.dataset.end) || parseISODate(dates.planEnd);
+      if(!currentStart || !currentEnd) return;
+      const state = role === "resize-start" ? GANTT_STATE.DRAG_RESIZE_START
+        : role === "resize-end" ? GANTT_STATE.DRAG_RESIZE_END
+        : GANTT_STATE.DRAG_MOVE;
+      ganttHistoryCheckpoint = snapshotPending();
+      ganttInteraction = {
+        state,
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        initialStart: currentStart,
+        initialEnd: currentEnd,
+        bar,
+        itemId,
+        timeline,
+        target: ev.currentTarget,
+        deltaDays: 0,
+        moved: false,
+        preview: null,
+        changed: false,
+      };
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      ev.currentTarget.addEventListener("pointermove", onPointerMove);
+      ev.currentTarget.addEventListener("pointerup", onPointerUp);
+      ev.currentTarget.addEventListener("pointercancel", onPointerCancel);
+    }
+
+    function onPointerMove(ev){
+      if(ev.pointerId !== ganttInteraction.pointerId) return;
+      const deltaX = ev.clientX - ganttInteraction.startX;
+      const deltaY = ev.clientY - ganttInteraction.startY;
+      if(ganttInteraction.state === GANTT_STATE.PENDING_CLICK){
+        if(Math.hypot(deltaX, deltaY) > GANTT_DRAG_THRESHOLD){
+          ganttInteraction.dragged = true;
+        }
+        return;
       }
+      if(!isGanttDragging()) return;
+      const deltaDays = calcDeltaDays(deltaX, ganttInteraction.timeline);
+      if(deltaDays === ganttInteraction.deltaDays) return;
+      ganttInteraction.deltaDays = deltaDays;
+      const next = computeDragDates(
+        ganttInteraction.state,
+        ganttInteraction.initialStart,
+        ganttInteraction.initialEnd,
+        deltaDays,
+        ganttInteraction.timeline
+      );
+      ganttInteraction.preview = next;
+      ganttInteraction.moved = Math.abs(deltaX) > GANTT_DRAG_THRESHOLD;
+      ganttInteraction.changed = deltaDays !== 0;
+      queueInteractionPreview();
+    }
+
+    function endInteraction(ev){
+      if(ganttInteraction.state === GANTT_STATE.PENDING_CLICK){
+        if(!ganttInteraction.dragged){
+          openModal(ganttInteraction.itemId);
+        } else {
+          suppressNextClick();
+        }
+      } else if(isGanttDragging()){
+        if(ganttInteraction.preview){
+          applyInteractionPreview();
+        }
+        if(ganttInteraction.changed && ganttHistoryCheckpoint){
+          pushHistory({pending: ganttHistoryCheckpoint});
+        }
+        if(ganttInteraction.moved){
+          suppressNextClick();
+        }
+      }
+      cleanupInteraction(ev);
+    }
+
+    function cleanupInteraction(ev){
       if(ganttDragFrame){
         cancelAnimationFrame(ganttDragFrame);
         ganttDragFrame = null;
       }
-      if(preview){
-        applyDragPreview();
-        if(ganttUndoCheckpoint) ganttUndoStack.push(ganttUndoCheckpoint);
+      if(ganttInteraction.target){
+        ganttInteraction.target.removeEventListener("pointermove", onPointerMove);
+        ganttInteraction.target.removeEventListener("pointerup", onPointerUp);
+        ganttInteraction.target.removeEventListener("pointercancel", onPointerCancel);
+        try{
+          ganttInteraction.target.releasePointerCapture(ganttInteraction.pointerId);
+        } catch (err){
+          // ignore release errors
+        }
       }
-      ganttJustDragged = !!ganttDrag.moved;
-      ganttUndoCheckpoint = null;
-      ganttDrag = null;
-      ganttDragging = false;
+      ganttInteraction = {state: GANTT_STATE.IDLE};
+      ganttHistoryCheckpoint = null;
+    }
+
+    function onPointerUp(ev){
+      if(ev.pointerId !== ganttInteraction.pointerId) return;
+      endInteraction(ev);
+    }
+
+    function onPointerCancel(ev){
+      if(ev.pointerId !== ganttInteraction.pointerId) return;
+      cleanupInteraction(ev);
     }
 
     function mName(m){
@@ -2617,6 +2748,7 @@
 
     function applyGanttPending(){
       if(!hasPendingChanges()) return;
+      pushHistory({pending: snapshotPending(), items: snapshotItems()});
       ganttPending.forEach((dates, id)=>{
         const item = byId(state.items, id);
         if(!item) return;
@@ -2625,7 +2757,7 @@
         item.updatedAt = nowISO();
       });
       save();
-      resetPending();
+      clearPending();
       ganttOrder = [];
       renderAll();
       refreshGanttActions();
@@ -2633,7 +2765,8 @@
 
     function cancelGanttPending(){
       if(!hasPendingChanges()) return;
-      resetPending();
+      clearPending();
+      resetHistory();
       ganttOrder = [];
       renderGantt();
       refreshGanttActions();
@@ -2641,10 +2774,22 @@
 
     function undoGanttChange(){
       if(currentTab !== "gantt") return;
-      if(!ganttUndoStack.length) return;
-      ganttPending = clonePendingMap(ganttUndoStack.pop());
-      ganttDrag = null;
-      ganttDragging = false;
+      if(!ganttHistory.past.length) return;
+      const entry = ganttHistory.past.pop();
+      const shouldCaptureItems = !!entry.items;
+      ganttHistory.future.push({pending: snapshotPending(), items: shouldCaptureItems ? snapshotItems() : null});
+      restoreHistory(entry);
+      renderGantt();
+      refreshGanttActions();
+    }
+
+    function redoGanttChange(){
+      if(currentTab !== "gantt") return;
+      if(!ganttHistory.future.length) return;
+      const entry = ganttHistory.future.pop();
+      const shouldCaptureItems = !!entry.items;
+      ganttHistory.past.push({pending: snapshotPending(), items: shouldCaptureItems ? snapshotItems() : null});
+      restoreHistory(entry);
       renderGantt();
       refreshGanttActions();
     }
@@ -3252,6 +3397,10 @@
       if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){
         e.preventDefault();
         undoGanttChange();
+      }
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y"){
+        e.preventDefault();
+        redoGanttChange();
       }
     });
 
