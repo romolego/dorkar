@@ -2054,6 +2054,7 @@
       DRAG_RESIZE_END: "DRAG_RESIZE_END",
     };
     const GANTT_DRAG_THRESHOLD = 4;
+    const MIN_BAR_BODY_DRAG_PX = 48;
     const GANTT_DAY_STEP = 1;
     let ganttPending = new Map();
     let ganttOrder = [];
@@ -2525,10 +2526,15 @@
 
       bar.style.borderColor = secColor;
 
+      const pos = positionFromDates(start, end, timeline);
+      const isNarrowBar = pos.width < MIN_BAR_BODY_DRAG_PX;
+      const moveHandleMarkup = isNarrowBar
+        ? `<button class="moveHandle" type="button" aria-label="Переместить полосу">↔</button>`
+        : "";
       bar.innerHTML = `
         <div class="handle left barHandle" data-role="resize-start"></div>
         <div class="handle right barHandle" data-role="resize-end"></div>
-        <button class="moveHandle" type="button" aria-label="Переместить полосу">↔</button>
+        ${moveHandleMarkup}
         <span class="barLabel">${esc(s)} → ${esc(e)}</span>
       `;
 
@@ -2545,7 +2551,7 @@
       bar.addEventListener("pointerdown", (ev)=>{
         if(ev.button !== 0) return;
         if(ev.target.closest(".barHandle") || ev.target.closest(".moveHandle")) return;
-        startBarClick(ev, bar, it.id);
+        startBarClick(ev, bar, it.id, ganttEditable && !isNarrowBar, timeline);
       });
 
       if(ganttEditable){
@@ -2561,7 +2567,7 @@
           moveHandle.addEventListener("pointerdown", (ev)=>{
             ev.preventDefault();
             ev.stopPropagation();
-            startDragInteraction(ev, bar, it.id, "move", timeline);
+            startDragInteraction(ev, bar, it.id, null, timeline);
           });
           moveHandle.addEventListener("click", (ev)=>{
             ev.preventDefault();
@@ -2604,7 +2610,7 @@
       });
     }
 
-    function startBarClick(ev, bar, itemId){
+    function startBarClick(ev, bar, itemId, canDrag, timeline){
       if(ganttInteraction.state !== GANTT_STATE.IDLE) return;
       ev.preventDefault();
       ev.stopPropagation();
@@ -2615,6 +2621,8 @@
         startY: ev.clientY,
         bar,
         itemId,
+        canDrag,
+        timeline,
         target: ev.currentTarget,
         dragged: false,
       };
@@ -2663,10 +2671,15 @@
       const deltaX = ev.clientX - ganttInteraction.startX;
       const deltaY = ev.clientY - ganttInteraction.startY;
       if(ganttInteraction.state === GANTT_STATE.PENDING_CLICK){
-        if(Math.hypot(deltaX, deltaY) > GANTT_DRAG_THRESHOLD){
-          ganttInteraction.dragged = true;
-        }
-        return;
+        if(!ganttInteraction.canDrag) return;
+        if(Math.hypot(deltaX, deltaY) <= GANTT_DRAG_THRESHOLD) return;
+        const pendingStartX = ganttInteraction.startX;
+        const pendingStartY = ganttInteraction.startY;
+        const {bar, itemId, timeline} = ganttInteraction;
+        startDragInteraction(ev, bar, itemId, null, timeline);
+        ganttInteraction.startX = pendingStartX;
+        ganttInteraction.startY = pendingStartY;
+        ganttInteraction.dragged = true;
       }
       if(!isGanttDragging()) return;
       const deltaDays = calcDeltaDays(deltaX, ganttInteraction.timeline);
