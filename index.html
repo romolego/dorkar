@@ -456,12 +456,12 @@
       border:1px solid rgba(37,99,235,.35);
       background:rgba(37,99,235,.15);
       color:#0b2a8a;
-      cursor:grab;
+      cursor:pointer;
       max-height:calc(100% - 12px);
     }
     .bar.disabled{cursor:default; border-style:dashed;}
     .bar.disabled .handle{display:none;}
-    .bar:active{cursor:grabbing}
+    .bar.disabled .dragHandle{display:none;}
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
@@ -479,8 +479,27 @@
     }
     .bar .handle.left{left:0;}
     .bar .handle.right{right:0;}
-    .bar .dragArea{z-index:2;}
     .bar .barLabel{position:relative; z-index:1;}
+    .bar .dragHandle{
+      position:absolute;
+      top:-10px;
+      right:-10px;
+      width:20px;
+      height:20px;
+      border-radius:7px;
+      border:1px solid rgba(37,99,235,.45);
+      background:#fff;
+      color:#0b2a8a;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:grab;
+      z-index:4;
+      box-shadow:0 2px 6px rgba(15,23,42,.15);
+      user-select:none;
+    }
+    .bar .dragHandle:active{cursor:grabbing;}
     .statusBadge{
       display:inline-flex;
       align-items:center;
@@ -2046,9 +2065,6 @@
     let ganttDragFrame = null;
     const GANTT_DRAG_THRESHOLD = 5;
     const GANTT_TINY_HANDLE_WIDTH = 16;
-    const GANTT_HANDLE_WIDTH = 10;
-    const GANTT_DRAG_PADDING = 6;
-    const GANTT_MIN_DRAG_HIT_WIDTH = 24;
     const sectionColorMap = {};
     const seasonColors = {
       12:"#dbeafe",1:"#dbeafe",2:"#dbeafe",
@@ -2412,16 +2428,6 @@
       bar.dataset.end = newEndStr;
       const label = bar.querySelector('.barLabel');
       if(label) label.textContent = `${newStartStr} → ${newEndStr}`;
-      const dragArea = bar.querySelector('.dragArea');
-      if(dragArea){
-        const availableWidth = Math.max(pos.width - GANTT_HANDLE_WIDTH*2, GANTT_MIN_DRAG_HIT_WIDTH);
-        const left = Math.max(GANTT_DRAG_PADDING, (pos.width - availableWidth)/2);
-        dragArea.style.top = `${GANTT_DRAG_PADDING}px`;
-        dragArea.style.bottom = `${GANTT_DRAG_PADDING}px`;
-        dragArea.style.left = `${left}px`;
-        dragArea.style.right = "auto";
-        dragArea.style.width = `${availableWidth}px`;
-      }
       bar.classList.toggle("tinyBar", pos.width < GANTT_TINY_HANDLE_WIDTH && ganttEditable);
     }
 
@@ -2452,7 +2458,6 @@
 
       function startDrag(type, ev){
         if(!ganttEditable || ev.button !== 0) return;
-        if(type === "move" && !ev.target.closest('.dragArea')) return;
         ev.preventDefault();
         ev.stopPropagation();
         const currentStart = parseISODate(bar.dataset.start || s) || start;
@@ -2477,7 +2482,7 @@
 
       bar.style.borderColor = secColor;
 
-      bar.innerHTML = `<div class="handle left resizeHandle" data-side="start"></div><div class="handle right resizeHandle" data-side="end"></div><div class="dragArea" data-role="move"></div><span class="barLabel">${esc(s)} → ${esc(e)}</span>`;
+      bar.innerHTML = `<div class="handle left resizeHandle" data-side="start"></div><div class="handle right resizeHandle" data-side="end"></div><button class="dragHandle" type="button" aria-label="Переместить полосу">↔</button><span class="barLabel">${esc(s)} → ${esc(e)}</span>`;
 
       setBarGeometry(bar, timeline, start, end);
 
@@ -2489,9 +2494,13 @@
       bar.querySelectorAll(".resizeHandle").forEach(h=>{
         h.addEventListener("mousedown", (ev)=>startDrag(h.dataset.side, ev));
       });
-      const dragArea = bar.querySelector('.dragArea');
-      if(dragArea){
-        dragArea.addEventListener('mousedown', (ev)=>startDrag('move', ev));
+      const dragHandle = bar.querySelector('.dragHandle');
+      if(dragHandle){
+        dragHandle.addEventListener('mousedown', (ev)=>startDrag('move', ev));
+        dragHandle.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
       }
       return bar;
     }
