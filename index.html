@@ -462,6 +462,7 @@
     .bar.disabled{cursor:default; border-style:dashed;}
     .bar.disabled .handle{display:none;}
     .bar.disabled .moveHandle{display:none;}
+    .bar.narrow{overflow:visible;}
     .bar.done{border-color:rgba(22,163,74,.35); background:rgba(22,163,74,.16); color:#065f46}
     .bar.work{border-color:rgba(217,119,6,.35); background:rgba(217,119,6,.16); color:#92400e}
     .bar.over{border-color:rgba(220,38,38,.35); background:rgba(220,38,38,.14); color:#7f1d1d}
@@ -500,6 +501,10 @@
       user-select:none;
     }
     .bar .moveHandle:active{cursor:grabbing;}
+    .bar.narrow .moveHandle{
+      right:-16px;
+      top:-10px;
+    }
     .statusBadge{
       display:inline-flex;
       align-items:center;
@@ -2531,6 +2536,9 @@
       const moveHandleMarkup = isNarrowBar
         ? `<button class="moveHandle" type="button" aria-label="Переместить полосу">↔</button>`
         : "";
+      if(isNarrowBar){
+        bar.classList.add("narrow");
+      }
       bar.innerHTML = `
         <div class="handle left barHandle" data-role="resize-start"></div>
         <div class="handle right barHandle" data-role="resize-end"></div>
@@ -2567,7 +2575,7 @@
           moveHandle.addEventListener("pointerdown", (ev)=>{
             ev.preventDefault();
             ev.stopPropagation();
-            startDragInteraction(ev, bar, it.id, null, timeline);
+            startDragInteraction(ev, bar, it.id, "move", timeline);
           });
           moveHandle.addEventListener("click", (ev)=>{
             ev.preventDefault();
@@ -2623,13 +2631,13 @@
         itemId,
         canDrag,
         timeline,
-        target: ev.currentTarget,
+        target: bar,
         dragged: false,
       };
-      ev.currentTarget.setPointerCapture(ev.pointerId);
-      ev.currentTarget.addEventListener("pointermove", onPointerMove);
-      ev.currentTarget.addEventListener("pointerup", onPointerUp);
-      ev.currentTarget.addEventListener("pointercancel", onPointerCancel);
+      bar.setPointerCapture(ev.pointerId);
+      bar.addEventListener("pointermove", onPointerMove);
+      bar.addEventListener("pointerup", onPointerUp);
+      bar.addEventListener("pointercancel", onPointerCancel);
     }
 
     function startDragInteraction(ev, bar, itemId, role, timeline){
@@ -2654,16 +2662,16 @@
         bar,
         itemId,
         timeline,
-        target: ev.currentTarget,
+        target: bar,
         deltaDays: 0,
         moved: false,
         preview: null,
         changed: false,
       };
-      ev.currentTarget.setPointerCapture(ev.pointerId);
-      ev.currentTarget.addEventListener("pointermove", onPointerMove);
-      ev.currentTarget.addEventListener("pointerup", onPointerUp);
-      ev.currentTarget.addEventListener("pointercancel", onPointerCancel);
+      bar.setPointerCapture(ev.pointerId);
+      bar.addEventListener("pointermove", onPointerMove);
+      bar.addEventListener("pointerup", onPointerUp);
+      bar.addEventListener("pointercancel", onPointerCancel);
     }
 
     function onPointerMove(ev){
@@ -2673,12 +2681,20 @@
       if(ganttInteraction.state === GANTT_STATE.PENDING_CLICK){
         if(!ganttInteraction.canDrag) return;
         if(Math.hypot(deltaX, deltaY) <= GANTT_DRAG_THRESHOLD) return;
-        const pendingStartX = ganttInteraction.startX;
-        const pendingStartY = ganttInteraction.startY;
         const {bar, itemId, timeline} = ganttInteraction;
-        startDragInteraction(ev, bar, itemId, null, timeline);
-        ganttInteraction.startX = pendingStartX;
-        ganttInteraction.startY = pendingStartY;
+        const item = byId(state.items, itemId);
+        if(!item) return;
+        const dates = workingDates(item);
+        const currentStart = parseISODate(bar.dataset.start) || parseISODate(dates.planStart);
+        const currentEnd = parseISODate(bar.dataset.end) || parseISODate(dates.planEnd);
+        if(!currentStart || !currentEnd) return;
+        ganttHistoryCheckpoint = snapshotPending();
+        ganttInteraction.state = GANTT_STATE.DRAG_MOVE;
+        ganttInteraction.initialStart = currentStart;
+        ganttInteraction.initialEnd = currentEnd;
+        ganttInteraction.deltaDays = 0;
+        ganttInteraction.preview = null;
+        ganttInteraction.changed = false;
         ganttInteraction.dragged = true;
       }
       if(!isGanttDragging()) return;
