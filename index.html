@@ -2154,6 +2154,9 @@
       if(!y||!m||!d) return null;
       return new Date(Date.UTC(y,m-1,d));
     }
+    function isValidDate(d){
+      return d instanceof Date && !Number.isNaN(d.getTime());
+    }
     function toISODate(date){
       return date.toISOString().slice(0,10);
     }
@@ -2178,19 +2181,31 @@
       ].includes(ganttInteraction.state);
     }
     function totalTimelineDays(timeline){
+      if(!timeline || !isValidDate(timeline.start) || !isValidDate(timeline.end)) return 0;
       return Math.max(1, diffDays(timeline.start, timeline.end)+1);
     }
     function pxPerDay(timeline){
-      return timeline.totalWidth / totalTimelineDays(timeline);
+      const totalDays = totalTimelineDays(timeline);
+      if(!Number.isFinite(totalDays) || totalDays <= 0) return NaN;
+      if(!Number.isFinite(timeline.totalWidth)) return NaN;
+      return timeline.totalWidth / totalDays;
     }
-    function calcDeltaDays(deltaPx, timeline){
-      const raw = deltaPx / pxPerDay(timeline);
+    function calcDeltaDays(deltaPx, timeline, pxPerDayOverride){
+      const px = Number.isFinite(pxPerDayOverride) ? pxPerDayOverride : pxPerDay(timeline);
+      if(!Number.isFinite(px) || px <= 0) return 0;
+      const raw = deltaPx / px;
       return Math.round(raw / GANTT_DAY_STEP) * GANTT_DAY_STEP;
     }
     function clampShift(shift, minShift, maxShift){
       return Math.min(Math.max(shift, minShift), maxShift);
     }
     function computeDragDates(type, initialStart, initialEnd, deltaDays, timeline){
+      if(!isValidDate(initialStart) || !isValidDate(initialEnd)){
+        return null;
+      }
+      if(!timeline || !isValidDate(timeline.start) || !isValidDate(timeline.end)){
+        return null;
+      }
       if(type === GANTT_STATE.DRAG_MOVE){
         const minShift = -diffDays(timeline.start, initialStart);
         const maxShift = diffDays(timeline.end, initialEnd);
@@ -2224,7 +2239,7 @@
       const endStr = state.dk.periodEnd;
       const start = parseISODate(startStr);
       const end = parseISODate(endStr);
-      if(!start || !end) return null;
+      if(!isValidDate(start) || !isValidDate(end)) return null;
       if(end < start) return null;
       const monthsTotal = (end.getUTCFullYear()-start.getUTCFullYear())*12 + (end.getUTCMonth()-start.getUTCMonth()) + 1;
       let scale = scalePref;
@@ -2587,11 +2602,15 @@
     }
 
     function positionFromDates(start, end, timeline){
+      if(!isValidDate(start) || !isValidDate(end)) return {left: 0, width: 0};
+      if(!timeline || !isValidDate(timeline.start) || !isValidDate(timeline.end)) return {left: 0, width: 0};
+      const px = pxPerDay(timeline);
+      if(!Number.isFinite(px) || px <= 0) return {left: 0, width: 0};
       const s = clampDate(start, timeline.start, timeline.end);
       const e = clampDate(end, timeline.start, timeline.end);
       const leftDays = Math.max(0, diffDays(timeline.start, s));
       const widthDays = Math.max(1, diffDays(s, e)+1);
-      return {left: leftDays * pxPerDay(timeline), width: widthDays * pxPerDay(timeline)};
+      return {left: leftDays * px, width: widthDays * px};
     }
 
     function updateLeftDates(id, startStr, endStr){
@@ -2647,7 +2666,7 @@
       const dates = workingDates(item);
       const currentStart = parseISODate(bar.dataset.start) || parseISODate(dates.planStart);
       const currentEnd = parseISODate(bar.dataset.end) || parseISODate(dates.planEnd);
-      if(!currentStart || !currentEnd) return;
+      if(!isValidDate(currentStart) || !isValidDate(currentEnd)) return;
       const state = role === "resize-start" ? GANTT_STATE.DRAG_RESIZE_START
         : role === "resize-end" ? GANTT_STATE.DRAG_RESIZE_END
         : GANTT_STATE.DRAG_MOVE;
@@ -2663,6 +2682,7 @@
         itemId,
         timeline,
         target: bar,
+        pxPerDay: pxPerDay(timeline),
         deltaDays: 0,
         moved: false,
         preview: null,
@@ -2687,7 +2707,7 @@
         const dates = workingDates(item);
         const currentStart = parseISODate(bar.dataset.start) || parseISODate(dates.planStart);
         const currentEnd = parseISODate(bar.dataset.end) || parseISODate(dates.planEnd);
-        if(!currentStart || !currentEnd) return;
+        if(!isValidDate(currentStart) || !isValidDate(currentEnd)) return;
         ganttHistoryCheckpoint = snapshotPending();
         ganttInteraction.state = GANTT_STATE.DRAG_MOVE;
         ganttInteraction.initialStart = currentStart;
@@ -2696,9 +2716,10 @@
         ganttInteraction.preview = null;
         ganttInteraction.changed = false;
         ganttInteraction.dragged = true;
+        ganttInteraction.pxPerDay = pxPerDay(timeline);
       }
       if(!isGanttDragging()) return;
-      const deltaDays = calcDeltaDays(deltaX, ganttInteraction.timeline);
+      const deltaDays = calcDeltaDays(deltaX, ganttInteraction.timeline, ganttInteraction.pxPerDay);
       if(deltaDays === ganttInteraction.deltaDays) return;
       ganttInteraction.deltaDays = deltaDays;
       const next = computeDragDates(
@@ -2710,7 +2731,12 @@
       );
       ganttInteraction.preview = next;
       ganttInteraction.moved = Math.abs(deltaX) > GANTT_DRAG_THRESHOLD;
-      ganttInteraction.changed = deltaDays !== 0;
+      ganttInteraction.changed = deltaDays !== 0 && !!next;
+      if(!next){
+        ganttInteraction.changed = false;
+        ganttInteraction.deltaDays = 0;
+        return;
+      }
       queueInteractionPreview();
     }
 
